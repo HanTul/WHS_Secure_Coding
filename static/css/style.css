@@ -465,5 +465,30 @@ body {
     color: #888;
   }
 
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  form input[type="text"],
+  form input[type="password"],
+  form textarea {
+    padding: 8px;
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+  }
+  
+  form button {
+    padding: 8px 12px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  
   
   

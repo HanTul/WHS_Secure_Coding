@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ user.nickname }}님의 프로필{% endblock %}
+
+{% block content %}
+<h2>{{ user.nickname }}님의 프로필</h2>
+
+{% if user.profile_img %}
+  <img src="{{ user.profile_img }}" alt="프로필 이미지" style="width:120px;height:120px;border-radius:50%;object-fit:cover;margin-bottom:10px;">
+{% endif %}
+
+<p><strong>한줄 소개:</strong></p>
+<p style="white-space:pre-wrap;">{{ user.intro or "소개가 없습니다." }}</p>
+
+{% if current_user.id == user.id %}
+  <p><a href="{{ url_for('my_profile') }}">[내 프로필 수정]</a></p>
+{% endif %}
+{% endblock %}

@@ -1,7 +1,17 @@
 import os, secrets, pathlib
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, redirect, url_for, request, flash, abort, g
+from flask import (
+    Flask,
+    render_template,
+    redirect,
+    url_for,
+    request,
+    flash,
+    abort,
+    g,
+    send_from_directory,
+)
 from flask_login import (
     LoginManager,
     login_user,
@@ -16,6 +26,7 @@ from models import db, bcrypt, User, Product, Report, Message
 from forms import RegisterForm, LoginForm, ProductForm
 from utils import time_ago
 from sqlalchemy import func
+from random import randint
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "static" / "img"
@@ -195,6 +206,11 @@ def create_app():
             if User.query.filter_by(username=form.username.data).first():
                 flash("이미 존재하는 아이디입니다.", "danger")
                 return redirect(url_for("register"))
+
+            nickname = f"user{randint(10000, 99999)}"
+            while User.query.filter_by(nickname=nickname).first():
+                nickname = f"user{randint(10000, 99999)}"
+
             u = User(username=form.username.data)
             u.set_password(form.password.data)
             db.session.add(u)
@@ -317,6 +333,69 @@ def create_app():
             abort(403)
         reports = Report.query.filter_by(resolved=False).all()
         return render_template("admin.html", reports=reports)
+
+    @app.route("/profile", methods=["GET", "POST"])
+    @login_required
+    def my_profile():
+        if request.method == "POST":
+            # 비밀번호 변경일 경우
+            if "old_password" in request.form:
+                old_pw = request.form.get("old_password", "")
+                new_pw = request.form.get("new_password", "")
+                if not current_user.check_password(old_pw):
+                    flash("기존 비밀번호가 일치하지 않습니다.", "danger")
+                else:
+                    current_user.set_password(new_pw)
+                    db.session.commit()
+                    flash("비밀번호가 변경되었습니다.", "success")
+
+            # 프로필 정보 수정일 경우
+            else:
+                nickname = request.form.get("nickname", "").strip()
+                intro = request.form.get("intro", "").strip()
+                file = request.files.get("profile_img")
+
+                # 닉네임 중복 체크
+                if nickname != current_user.nickname:
+                    exists = User.query.filter(
+                        User.nickname == nickname, User.id != current_user.id
+                    ).first()
+                    if exists:
+                        flash("이미 사용 중인 닉네임입니다.", "danger")
+                        return redirect(url_for("my_profile"))
+                    current_user.nickname = nickname
+
+                current_user.intro = intro
+
+                # 이미지 저장
+                if file and file.filename:
+                    ext = file.filename.rsplit(".", 1)[-1].lower()
+                    if ext in {"jpg", "jpeg", "png", "gif"}:
+                        fname = secure_filename(file.filename)
+                        path = os.path.join("static", "img", fname)
+                        file.save(path)
+                        current_user.profile_img = "/" + path.replace("\\", "/")
+
+                db.session.commit()
+                flash("프로필이 저장되었습니다.", "success")
+
+        return render_template("my_profile.html", user=current_user)
+
+    @app.route("/profile/<nickname>")
+    def view_profile(nickname):
+        u = User.query.filter_by(nickname=nickname).first_or_404()
+        return render_template("view_profile.html", user=u)
+
+    @app.route("/check_nickname", methods=["POST"])
+    def check_nickname():
+        nickname = request.form.get("nickname", "").strip()
+        if not nickname:
+            return {"valid": False, "msg": "닉네임을 입력해주세요."}
+        exists = User.query.filter_by(nickname=nickname).first()
+        return {
+            "valid": not bool(exists),
+            "msg": "사용 가능" if not exists else "이미 사용 중입니다.",
+        }
 
     # ───── socket handlers ─────
 

@@ -10,8 +10,10 @@ bcrypt = Bcrypt()
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(30), unique=True, nullable=False)
+    nickname = db.Column(db.String(30), unique=True, nullable=True)  # ✅ 닉네임 추가
+    profile_img = db.Column(db.String(255), default="")
+    intro = db.Column(db.Text, default="")  # ✅ 한 줄 소개
     pw_hash = db.Column(db.String(128), nullable=False)
-    intro = db.Column(db.Text, default="")
     is_admin = db.Column(db.Boolean, default=False)
     is_suspend = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -29,6 +31,10 @@ class User(db.Model, UserMixin):
 
     def check_password(self, pw):
         return bcrypt.check_password_hash(self.pw_hash, pw)
+
+    @property
+    def profile_img_url(self):
+        return self.profile_img or "/static/img/default.png"
 
 
 class Product(db.Model):

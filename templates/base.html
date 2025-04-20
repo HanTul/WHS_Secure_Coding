@@ -26,12 +26,14 @@
         <span id="notif-btn" class="notif-icon">
           🔔<span id="dm-count" class="badge" hidden>0</span>
         </span>
+        <a href="{{ url_for('my_profile') }}">프로필</a>
         <a href="{{ url_for('logout') }}">로그아웃</a>
       {% else %}
         <a href="{{ url_for('login') }}">로그인</a>
         <a href="{{ url_for('register') }}">회원가입</a>
       {% endif %}
     </div>
+    
   </nav>
 
   {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -79,5 +81,14 @@
 
   <!-- DM 알림 드롭다운 -->
   <div id="notif-panel"><ul></ul></div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const flashes = {{ get_flashed_messages(with_categories=true) | tojson }};
+      flashes.forEach(([cat, msg]) => {
+        alert(msg);
+      });
+    });
+  </script>
+
 </body>
 </html>
