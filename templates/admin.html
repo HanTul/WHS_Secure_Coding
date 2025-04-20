@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}관리자 대시보드{% endblock %}
+{% block content %}
+<h2>신고 목록</h2>
+<table border="1">
+  <tr><th>ID</th><th>타입</th><th>대상ID</th><th>신고자</th><th>사유</th><th>생성</th></tr>
+  {% for r in reports %}
+    <tr>
+      <td>{{ r.id }}</td>
+      <td>{{ r.target_type }}</td>
+      <td>{{ r.target_id }}</td>
+      <td>{{ r.reporter.username }}</td>
+      <td>{{ r.reason }}</td>
+      <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    </tr>
+  {% endfor %}
+</table>
+{% endblock %}

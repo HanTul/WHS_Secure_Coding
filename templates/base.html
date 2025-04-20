@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}중고거래 사이트{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script defer src="{{ url_for('static', filename='js/notify.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/chat.js') }}"></script>
+  {% block head %}{% endblock %}
+</head>
+<body data-userid="{{ current_user.id if current_user.is_authenticated else '' }}"
+      data-username="{{ current_user.username if current_user.is_authenticated else '' }}">
+
+  <nav>
+    <div class="nav-left">중고거래 사이트</div>
+    <div class="nav-center">
+      <a href="{{ url_for('index') }}">홈</a>
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('product_new') }}">새 상품</a>
+        <a href="{{ url_for('my_products') }}">내 상품</a>
+      {% endif %}
+    </div>
+    <div class="nav-right">
+      {% if current_user.is_authenticated %}
+        <span id="notif-btn" class="notif-icon">
+          🔔<span id="dm-count" class="badge" hidden>0</span>
+        </span>
+        <a href="{{ url_for('logout') }}">로그아웃</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">로그인</a>
+        <a href="{{ url_for('register') }}">회원가입</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      <ul id="flash">
+        {% for cat, msg in msgs %}
+          <li class="{{ cat }}">{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <!-- 전체 채팅 버튼 & 팝업 -->
+  <button id="public-chat-button">💬<span id="public-chat-unread" hidden>0</span></button>
+  <div id="public-chat-popup">
+    <div class="chat-tabs">
+      <button class="tab active" data-tab="public">전체</button>
+      <button class="tab" data-tab="dm">개인</button>
+    </div>
+    <div id="tab-public" class="tab-content">
+      <div id="chat-box-public"></div>
+      <input id="chat-input-public" placeholder="메시지를 입력하세요…" />
+    </div>
+    <div id="tab-dm" class="tab-content hidden">
+      <ul id="chat-history-list">
+        {% for c in g.chat_previews %}
+        <li class="chat-preview {% if not c.read %}unread{% endif %}"
+            data-key="{{ c.partner_id }}-{{ c.product_id }}">
+          <a class="chat-link"
+             href="{{ url_for('dm_chat', partner_id=c.partner_id, item=c.product_id or None) }}">
+            <div class="chat-header">
+              <span class="chat-username">{{ c.username }}</span>
+              <span class="chat-time">{{ c.time }}</span>
+            </div>
+            <div class="chat-message">{{ c.last_msg }}</div>
+            <div class="chat-meta">{{ c.product_name }}</div>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <!-- DM 알림 드롭다운 -->
+  <div id="notif-panel"><ul></ul></div>
+</body>
+</html>

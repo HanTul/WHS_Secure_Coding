@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}중고거래 홈{% endblock %}
+
+{% block content %}
+<div class="grid">
+  {% for p in products %}
+  <a href="{{ url_for('product_detail', pid=p.id) }}" class="card">
+    <img src="{{ p.image_path_list[0] }}" alt="상품 이미지">
+    <div class="card-body">
+      <div><strong>{{ p.name }}</strong></div>
+      <div class="price">{{ "{:,}".format(p.price) }}원</div>
+      <div class="meta">{{ p.seller.username }} · {{ (p.created_at|timeago) }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

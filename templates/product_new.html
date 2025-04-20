@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}상품 등록{% endblock %}
+
+{% block content %}
+<h2>새 상품 등록</h2>
+<form method="post" enctype="multipart/form-data">
+  {{ form.hidden_tag() }}
+  <p>{{ form.name.label }} {{ form.name() }}</p>
+  <p>{{ form.description.label }} {{ form.description() }}</p>
+  <p>{{ form.price.label }} {{ form.price() }}</p>
+  <p>{{ form.image.label }} {{ form.image(multiple=True) }}</p>
+  <button type="submit">등록</button>
+</form>
+{% endblock %}

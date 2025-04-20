@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+
+<div class="product-detail">
+  <div class="product-image-slider">
+    {% for path in p.image_path_list %}
+      <img src="{{ path }}" alt="상품 이미지">
+    {% endfor %}
+  </div>
+
+  <h2>{{ p.name }}</h2>
+  <p><strong>가격:</strong> {{ "{:,}".format(p.price) }}원</p>
+  <p>{{ p.description }}</p>
+  <p><strong>판매자:</strong> {{ p.seller.username }}</p>
+
+  {% if current_user.is_authenticated and current_user.id != p.seller_id %}
+    <a href="{{ url_for('dm_chat', partner_id=p.seller_id, item=p.id) }}">채팅하기</a>
+  {% endif %}
+
+  <h3>신고하기</h3>
+  <form method="post" action="{{ url_for('report', target_type='product', tid=p.id) }}">
+    <input name="reason" placeholder="신고 사유">
+    <button>신고</button>
+  </form>
+</div>
+
+{% endblock %}

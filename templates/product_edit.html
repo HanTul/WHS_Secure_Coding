@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}상품 수정{% endblock %}
+
+{% block content %}
+<h2>상품 수정: {{ p.name }}</h2>
+<form method="post" enctype="multipart/form-data">
+  {{ form.hidden_tag() }}
+  <p>{{ form.name.label }} {{ form.name() }}</p>
+  <p>{{ form.description.label }} {{ form.description(rows=4) }}</p>
+  <p>{{ form.price.label }} {{ form.price() }}</p>
+  <p>
+    기존 이미지:
+    {% if p.image_path %}
+      <img src="{{ p.image_path }}" style="max-width:120px">
+    {% else %}
+      (없음)
+    {% endif %}
+  </p>
+  <p>{{ form.image.label }} {{ form.image() }}</p>
+  <button type="submit">저장</button>
+</form>
+{% endblock %}

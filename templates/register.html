@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}회원가입{% endblock %}
+{% block content %}
+<h2>회원가입</h2>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <p>{{ form.username.label }} {{ form.username() }}</p>
+  <p>{{ form.password.label }} {{ form.password() }}</p>
+  <p>{{ form.confirm.label }} {{ form.confirm() }}</p>
+  <button type="submit">가입</button>
+</form>
+{% endblock %}
