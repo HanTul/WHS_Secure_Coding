@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function formatTime(iso) {
-    const t = new Date(iso);
+    const t = new Date(iso + "Z");
     return t.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
   }
 });

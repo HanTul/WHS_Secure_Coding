@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     box.querySelectorAll(".message").forEach(msgEl => {
       const iso = msgEl.dataset.time;
       if (!iso) return;
-      const d = new Date(iso + "Z");  // ← 여기
+      const d = new Date(iso);  // ← 여기
       if (isNaN(d)) return;
   
       const h = d.getHours();

@@ -27,7 +27,12 @@
          alt="상품 이미지"
          style="width:60px;height:60px;object-fit:cover;border-radius:6px;">
     <div>
-      <div style="font-weight:bold;">{{ product.name }}</div>
+      <h3>
+        <a href="{{ url_for('product_detail', pid=product.id) }}" style="color: inherit; text-decoration: none;">
+          {{ product.name }}
+        </a>
+      </h3>
+      
       <div style="color:#888;">{{ '{:,}'.format(product.price) }}원</div>
     </div>
   </div>
