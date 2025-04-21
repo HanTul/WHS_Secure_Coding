@@ -24,7 +24,7 @@
     <div class="nav-right">
       {% if current_user.is_authenticated %}
         <span id="notif-btn" class="notif-icon">
-          🔔<span id="dm-count" class="badge" hidden>0</span>
+          🔔<span id="notif-count" class="badge" hidden>0</span>
         </span>
         <a href="{{ url_for('my_profile') }}">프로필</a>
         <a href="{{ url_for('logout') }}">로그아웃</a>
@@ -32,6 +32,10 @@
         <a href="{{ url_for('login') }}">로그인</a>
         <a href="{{ url_for('register') }}">회원가입</a>
       {% endif %}
+      <!-- DM 알림 드롭다운 -->
+      <div id="notif-panel" style="display:none; position:absolute; top:50px; right:20px; background:white; border:1px solid #ccc; padding:10px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.2); z-index:1000;">
+        <ul style="list-style:none; padding:0; margin:0; max-height:300px; overflow-y:auto;"></ul>
+      </div>
     </div>
     
   </nav>
@@ -79,8 +83,6 @@
     </div>
   </div>
 
-  <!-- DM 알림 드롭다운 -->
-  <div id="notif-panel"><ul></ul></div>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const flashes = {{ get_flashed_messages(with_categories=true) | tojson }};

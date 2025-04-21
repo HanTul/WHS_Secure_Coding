@@ -140,6 +140,11 @@ body {
   font-size: 18px;
 }
 
+#notif-btn {
+  position: relative;
+  cursor: pointer;
+}
+
 #notif-count {
   background: red;
   color: white;
@@ -149,6 +154,10 @@ body {
   position: absolute;
   top: -6px;
   right: -10px;
+  display: none;
+}
+
+#notif-count.show {
   display: inline-block;
 }
 
@@ -202,7 +211,31 @@ body {
     margin-top: 4px;
   }
 
+  .notif-item {
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+    font-size: 14px;
+    line-height: 1.4;
+  }
   
+  .notif-nick {
+    font-weight: bold;
+  }
+  
+  .notif-prod {
+    color: #555;
+    font-size: 13px;
+  }
+  
+  .notif-text {
+    margin-top: 2px;
+  }
+  
+  .notif-time {
+    font-size: 11px;
+    color: #888;
+    text-align: right;
+  }
   
   /* ─────────────── 전체 채팅 버튼 ─────────────── */
   #public-chat-button {

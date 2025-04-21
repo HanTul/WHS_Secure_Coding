@@ -433,7 +433,7 @@ def create_app():
                     "msg": m.content,
                     "sender_id": m.sender_id,
                     "username": m.sender.username,
-                    "time": m.created_at.isoformat(),
+                    "time": m.created_at.isoformat() + "Z",
                 }
                 for m in msgs
             ],
@@ -524,13 +524,13 @@ def create_app():
                 {
                     "sender_id": sender_id,
                     "partner_id": sender_id,
-                    "partner_name": current_user.username,
+                    "partner_name": current_user.nickname or current_user.username,
                     "product_id": prod.id if prod else 0,
                     "product_name": prod.name if prod else "(상품없음)",
                     "snippet": text[:30],
-                    "time": m.created_at.isoformat() + "Z",  # ← 여기 Z 보장
+                    "time": m.created_at.isoformat() + "Z",
                 },
-                room=f"user-{target_id}",
+                room=f"user_{target_id}",
             )
 
         # 4. 🔥 dm_refresh - 실시간 미리보기 한 줄씩 직접 전송

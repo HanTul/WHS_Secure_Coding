@@ -8,7 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const boxPublic   = document.getElementById("chat-box-public");
   const inputPublic = document.getElementById("chat-input-public");
   const badgePublic = document.getElementById("public-chat-unread");
-  const badgeDm     = document.getElementById("dm-count");
   const listPreview = document.getElementById("chat-history-list");
   const myId        = Number(document.body.dataset.userid);
   let pubUnread     = 0;
@@ -98,8 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </li>`);
       if (isUnread) unreadCnt++;
     });
-    badgeDm.textContent = unreadCnt;
-    badgeDm.hidden = unreadCnt === 0;
   });
 
   socket.on("dm_refresh", d => {
@@ -122,12 +119,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </a>
       </li>`);
   
-    // 🔥 currentRoom 값을 기준으로 비교
-    if (!d.read && currentRoom !== myRoom) {
-      const count = Number(badgeDm.textContent || 0) + 1;
-      badgeDm.textContent = count;
-      badgeDm.hidden = false;
-    }
   });
 
   listPreview.addEventListener("click", e => {
@@ -135,8 +126,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!li) return;
     li.classList.remove("unread");
     const remain = listPreview.querySelectorAll("li.unread").length;
-    badgeDm.textContent = remain;
-    badgeDm.hidden = remain === 0;
   });
 
   function formatAgo(iso) {
@@ -149,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function formatTime(iso) {
-    const t = new Date(iso + "Z");
+    const t = new Date(iso);
     return t.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
   }
 });
