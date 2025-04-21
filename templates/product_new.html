@@ -9,6 +9,9 @@
   <p>{{ form.description.label }} {{ form.description() }}</p>
   <p>{{ form.price.label }} {{ form.price() }}</p>
   <p>{{ form.image.label }} {{ form.image(multiple=True) }}</p>
+  <p>{{ form.is_sold.label }} {{ form.is_sold() }}</p>
+  <p>{{ form.removed.label }} {{ form.removed() }}</p>
+
   <button type="submit">등록</button>
 </form>
 {% endblock %}

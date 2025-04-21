@@ -1,29 +1,165 @@
 {% extends "base.html" %}
 {% block title %}{{ p.name }}{% endblock %}
-{% block content %}
 
-<div class="product-detail">
-  <div class="product-image-slider">
-    {% for path in p.image_path_list %}
-      <img src="{{ path }}" alt="상품 이미지">
-    {% endfor %}
+{% block content %}
+<div class="product-detail" style="display:flex; flex-wrap:wrap; gap:32px; padding:24px 12px;">
+  <!-- 좌측: 이미지 + 판매자 -->
+  <div style="flex:1; min-width:320px; max-width:500px; padding:16px; min-height:400px;">
+    <div class="product-image-slider" style="
+      margin-bottom:20px;
+      aspect-ratio:1/1;
+      background:#f8f8f8;
+      border-radius:12px;
+      position:relative;
+      overflow:hidden;">
+      <img id="main-image" src="{{ p.image_path_list[0] }}" alt="상품 이미지"
+           style="width:100%; height:100%; object-fit:contain; border-radius:12px;">
+
+      {% if p.image_path_list|length > 1 %}
+      <button id="prev-image" style="position:absolute; top:50%; left:10px; transform:translateY(-50%);
+              background:rgba(0,0,0,0.4); color:white; border:none; border-radius:50%;
+              width:32px; height:32px; cursor:pointer;">‹</button>
+      <button id="next-image" style="position:absolute; top:50%; right:10px; transform:translateY(-50%);
+              background:rgba(0,0,0,0.4); color:white; border:none; border-radius:50%;
+              width:32px; height:32px; cursor:pointer;">›</button>
+      {% endif %}
+    </div>
+
+    {% if p.image_path_list|length > 1 %}
+    <div id="image-dots" style="text-align:center; margin-top:10px;">
+      {% for _ in p.image_path_list %}
+        <span class="dot" style="display:inline-block; width:8px; height:8px; margin:0 4px;
+                                 background:#ccc; border-radius:50%;"></span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display:flex; align-items:center; gap:12px; margin-top:16px;">
+      <img src="{{ p.seller.profile_img_url }}" alt="프로필 이미지"
+           style="width:50px; height:50px; border-radius:50%; object-fit:cover;">
+      <div>
+        <a href="{{ url_for('view_profile', username=p.seller.username) }}"
+           style="font-weight:bold; text-decoration:none; color:#333;">
+          {{ p.seller.nickname or p.seller.username }}
+        </a>
+      </div>
+    </div>
   </div>
 
-  <h2>{{ p.name }}</h2>
-  <p><strong>가격:</strong> {{ "{:,}".format(p.price) }}원</p>
-  <p>{{ p.description }}</p>
-  <p><strong>판매자:</strong> {{ p.seller.username }}</p>
+  <!-- 우측: 상품 정보 -->
+  <div style="flex:1; min-width:300px; padding:20px;">
+    <h2 style="font-size:26px; margin-bottom:12px;">
+      {{ p.name }}
+      <span style="font-size:14px; padding:4px 8px; margin-left:10px;
+                   background:{{ 'gray' if p.is_sold else '#f60' }};
+                   color:white; border-radius:6px;">
+        {{ '판매완료' if p.is_sold else '판매중' }}
+      </span>
+    </h2>
 
-  {% if current_user.is_authenticated and current_user.id != p.seller_id %}
-    <a href="{{ url_for('dm_chat', partner_id=p.seller_id, item=p.id) }}">채팅하기</a>
-  {% endif %}
+    <p style="font-size:22px; font-weight:bold; margin-bottom:20px;">
+      {{ "{:,}".format(p.price) }}원
+    </p>
+    <p style="white-space:pre-wrap; font-size:16px; line-height:1.8; margin-bottom:32px;">
+      {{ p.description }}
+    </p>
 
-  <h3>신고하기</h3>
-  <form method="post" action="{{ url_for('report', target_type='product', tid=p.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input name="reason" placeholder="신고 사유">
-    <button>신고</button>
-  </form>
+    {% if current_user.is_authenticated and current_user.id != p.seller_id %}
+      <div style="margin-bottom:24px;">
+        <a href="{{ url_for('dm_chat', partner_id=p.seller_id, item=p.id) }}"
+           style="display:inline-block; padding:10px 20px; background:#f60; color:white; border-radius:6px; text-decoration:none;">
+          💬 채팅하기
+        </a>
+      </div>
+
+      <div>
+        <button id="report-toggle" style="background:none; border:none; color:#888; cursor:pointer;">
+          🚨 신고하기
+        </button>
+        <form id="report-form" method="post"
+              action="{{ url_for('report', target_type='product', tid=p.id) }}"
+              style="display:none; margin-top:10px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <textarea name="reason" placeholder="신고 사유를 입력하세요"
+                    style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px;"></textarea>
+          <button style="margin-top:10px; padding:8px 16px; background:#d33; color:white; border:none; border-radius:6px;">
+            신고 제출
+          </button>
+        </form>
+      </div>
+
+    {% elif current_user.is_authenticated and current_user.id == p.seller_id %}
+      <div style="margin-bottom:24px;">
+        <a href="{{ url_for('product_edit', pid=p.id) }}"
+           style="display:inline-block; padding:10px 20px; background:#888; color:white; border-radius:6px; text-decoration:none;">
+          ✏️ 수정하기
+        </a>
+      </div>
+    {% endif %}
+  </div>
 </div>
 
+<!-- 판매자의 다른 상품 목록 -->
+{% if seller_products %}
+  <div style="padding:24px 12px;">
+    <h3 style="margin-bottom:16px;">📦 판매자의 다른 상품</h3>
+    <div class="grid">
+      {% for sp in seller_products %}
+        <a href="{{ url_for('product_detail', pid=sp.id) }}" class="card" style="position:relative;">
+          {% if sp.is_sold is not none %}
+          <div style="position:absolute; top:8px; left:8px;
+                      background:{{ 'gray' if sp.is_sold else '#f60' }};
+                      color:white; font-size:12px;
+                      padding:2px 6px; border-radius:4px; z-index:2;">
+            {{ '판매완료' if sp.is_sold else '판매중' }}
+          </div>
+          {% endif %}
+          <img src="{{ sp.image_path_list[0] }}" alt="상품 이미지" style="aspect-ratio:1/1; object-fit:cover;">
+          <div class="card-body">
+            <div><strong>{{ sp.name }}</strong></div>
+            <div class="price">{{ "{:,}".format(sp.price) }}원</div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const toggle = document.getElementById("report-toggle");
+    const form = document.getElementById("report-form");
+    if (toggle && form) {
+      toggle.addEventListener("click", () => {
+        form.style.display = form.style.display === "none" ? "block" : "none";
+      });
+    }
+
+    const images = {{ p.image_path_list|tojson }};
+    let index = 0;
+    const mainImage = document.getElementById("main-image");
+    const dots = document.querySelectorAll(".dot");
+
+    function updateImage() {
+      mainImage.src = images[index];
+      if (dots.length) {
+        dots.forEach((dot, i) => {
+          dot.style.background = i === index ? "#666" : "#ccc";
+        });
+      }
+    }
+
+    document.getElementById("prev-image")?.addEventListener("click", () => {
+      index = (index - 1 + images.length) % images.length;
+      updateImage();
+    });
+
+    document.getElementById("next-image")?.addEventListener("click", () => {
+      index = (index + 1) % images.length;
+      updateImage();
+    });
+
+    updateImage();
+  });
+</script>
 {% endblock %}

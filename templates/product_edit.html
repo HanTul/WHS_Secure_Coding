@@ -8,15 +8,84 @@
   <p>{{ form.name.label }} {{ form.name() }}</p>
   <p>{{ form.description.label }} {{ form.description(rows=4) }}</p>
   <p>{{ form.price.label }} {{ form.price() }}</p>
+  <p>{{ form.is_sold.label }} {{ form.is_sold() }}</p>
+  <p>{{ form.removed.label }} {{ form.removed() }}</p>
+
   <p>
     기존 이미지:
-    {% if p.image_path %}
-      <img src="{{ p.image_path }}" style="max-width:120px">
+    {% if p.image_path_list %}
+      <div id="image-preview-area" style="display:flex; gap:12px; flex-wrap:wrap;">
+        {% for path in p.image_path_list %}
+          <div class="image-box" style="position:relative; display:inline-block;">
+            <img src="{{ path }}" style="width:120px; border-radius:8px;">
+            <button type="button" class="delete-btn" data-path="{{ path }}"
+                    style="
+                      position:absolute;
+                      top:4px;
+                      right:4px;
+                      background:rgba(0, 0, 0, 0.6);
+                      color:white;
+                      border:none;
+                      border-radius:50%;
+                      width:24px;
+                      height:24px;
+                      font-size:16px;
+                      font-weight:bold;
+                      line-height:24px;
+                      text-align:center;
+                      cursor:pointer;
+                      transition: background 0.2s;">
+              ×
+            </button>
+          </div>
+        {% endfor %}
+      </div>
     {% else %}
       (없음)
     {% endif %}
   </p>
+
   <p>{{ form.image.label }} {{ form.image() }}</p>
   <button type="submit">저장</button>
 </form>
+{% endblock %}
+
+{% block script %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.querySelector("form");
+
+    document.querySelectorAll(".delete-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const allBoxes = document.querySelectorAll(".image-box");
+
+        // ✅ 이미지가 1개만 남은 경우 삭제 막기
+        if (allBoxes.length <= 1) {
+          alert("이미지는 최소 1장 이상 등록되어야 합니다.");
+          return;
+        }
+
+        const box = btn.closest(".image-box");
+        const value = btn.dataset.path;
+
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "delete_images";
+        input.value = value;
+
+        form.appendChild(input);
+        box.remove();
+      });
+    });
+  });
+</script>
+{% endblock %}
+
+
+{% block style %}
+<style>
+  .delete-btn:hover {
+    background: rgba(0, 0, 0, 0.85);
+  }
+</style>
 {% endblock %}

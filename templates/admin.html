@@ -24,7 +24,7 @@
   </tr>
   {% for r in reports %}
     <tr>
-      <td>{{ r.id }}</td>
+      <td>{{ loop.index }}</td>
       <td>
         {{ r.reporter.username }}
         {% if r.reporter.nickname %} ({{ r.reporter.nickname }}){% endif %}
@@ -67,7 +67,7 @@
   </tr>
   {% for u in users %}
     <tr>
-      <td>{{ u.id }}</td>
+      <td>{{ loop.index }}</td>
       <td>{{ u.username }}</td>
       <td>{{ u.nickname or "-" }}</td>
       <td>{{ "정지됨" if u.is_suspend else "정상" }}</td>
@@ -94,7 +94,7 @@
     </tr>
     {% for p in products %}
       <tr>
-        <td>{{ p.id }}</td>
+        <td>{{ loop.index }}</td>
         <td>{{ p.name }}</td>
         <td>
           {{ p.seller.username }}

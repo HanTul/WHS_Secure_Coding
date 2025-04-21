@@ -2,16 +2,36 @@
 {% block title %}중고거래 홈{% endblock %}
 
 {% block content %}
-<div class="grid">
-  {% for p in products %}
-  <a href="{{ url_for('product_detail', pid=p.id) }}" class="card">
-    <img src="{{ p.image_path_list[0] }}" alt="상품 이미지">
-    <div class="card-body">
-      <div><strong>{{ p.name }}</strong></div>
-      <div class="price">{{ "{:,}".format(p.price) }}원</div>
-      <div class="meta">{{ p.seller.username }} · {{ (p.created_at|timeago) }}</div>
-    </div>
-  </a>
-  {% endfor %}
-</div>
+{% if products %}
+  <div class="grid">
+    {% for p in products %}
+      <a href="{{ url_for('product_detail', pid=p.id) }}" class="card" style="position:relative;">
+        <!-- ✅ 판매 상태 뱃지 -->
+        <div style="position:absolute; top:8px; left:8px;
+                    background:{{ 'gray' if p.is_sold else '#f60' }};
+                    color:white; font-size:12px;
+                    padding:2px 6px; border-radius:4px; z-index:2;">
+          {{ '판매완료' if p.is_sold else '판매중' }}
+        </div>
+
+        <img src="{{ p.image_path_list[0] }}" alt="상품 이미지">
+        <div class="card-body">
+          <div><strong>{{ p.name }}</strong></div>
+          <div class="price">{{ "{:,}".format(p.price) }}원</div>
+          <div class="meta">{{ p.seller.nickname }} · {{ (p.created_at|timeago) }}</div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  {% if request.args.get("q", "").strip() %}
+    <p style="padding:20px; text-align:center; color:#666;">
+      검색 결과가 없습니다.
+    </p>
+  {% else %}
+    <p style="padding:20px; text-align:center; color:#666;">
+      등록된 상품이 없습니다.
+    </p>
+  {% endif %}
+{% endif %}
 {% endblock %}

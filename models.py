@@ -52,6 +52,7 @@ class Product(db.Model):
 
     seller_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     reports_cnt = db.Column(db.Integer, default=0)
+    is_sold = db.Column(db.Boolean, default=False)
 
     def owner_check(self, user):
         return user.is_authenticated and self.seller_id == user.id

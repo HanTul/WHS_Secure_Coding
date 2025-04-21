@@ -8,6 +8,7 @@
   <script defer src="{{ url_for('static', filename='js/notify.js') }}"></script>
   <script defer src="{{ url_for('static', filename='js/chat.js') }}"></script>
   {% block head %}{% endblock %}
+  {% block style %}{% endblock %}
 </head>
 <body data-userid="{{ current_user.id if current_user.is_authenticated else '' }}"
       data-username="{{ current_user.username if current_user.is_authenticated else '' }}">
@@ -20,6 +21,7 @@
         <a href="{{ url_for('product_new') }}">새 상품</a>
         <a href="{{ url_for('my_products') }}">내 상품</a>
       {% endif %}
+      <span id="search-icon" style="cursor:pointer; margin-left:10px;">🔍</span>      
     </div>
     <div class="nav-right">
       {% if current_user.is_authenticated %}
@@ -39,7 +41,14 @@
     </div>
     
   </nav>
-
+  <div id="search-bar" style="display:none; padding:10px 24px; border-bottom:1px solid #ddd;">
+    <form action="{{ url_for('index') }}" method="get" style="display:flex; gap:6px; align-items:center;">
+      <input type="text" name="q" placeholder="상품 검색..." value="{{ request.args.get('q', '') }}"
+      style="padding:6px; border:1px solid #ccc; border-radius:4px; font-size:14px; width:100%; max-width:400px;">
+      <button type="submit" style="padding:6px 12px;">검색</button>
+    </form>
+  </div>
+  
 
   <main>{% block content %}{% endblock %}</main>
 
@@ -82,6 +91,21 @@
       });
     });
   </script>
-
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const icon = document.getElementById("search-icon");
+      const bar = document.getElementById("search-bar");
+  
+      if (icon && bar) {
+        icon.addEventListener("click", () => {
+          bar.style.display = bar.style.display === "none" ? "block" : "none";
+          if (bar.style.display === "block") {
+            bar.querySelector("input[name='q']").focus();
+          }
+        });
+      }
+    });
+  </script>
+  {% block script %}{% endblock %}
 </body>
 </html>

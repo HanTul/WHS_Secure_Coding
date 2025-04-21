@@ -198,9 +198,23 @@ def create_app():
 
     @app.route("/")
     def index():
-        prods = Product.query.filter_by(removed=False).order_by(
-            Product.created_at.desc()
-        )
+        keyword = request.args.get("q", "").strip()
+
+        if keyword:
+            prods = (
+                Product.query.filter(
+                    Product.removed == False, Product.name.ilike(f"%{keyword}%")
+                )
+                .order_by(Product.created_at.desc())
+                .all()
+            )
+        else:
+            prods = (
+                Product.query.filter_by(removed=False)
+                .order_by(Product.created_at.desc())
+                .all()
+            )
+
         return render_template("index.html", products=prods)
 
     @app.route("/register", methods=["GET", "POST"])
@@ -215,7 +229,7 @@ def create_app():
             while User.query.filter_by(nickname=nickname).first():
                 nickname = f"user{randint(10000, 99999)}"
 
-            u = User(username=form.username.data)
+            u = User(username=form.username.data, nickname=nickname)
             u.set_password(form.password.data)
             db.session.add(u)
             db.session.commit()
@@ -255,12 +269,18 @@ def create_app():
                     paths.append(f"/static/img/{fname}")
             if not paths:
                 flash("이미지는 최소 1장 이상 업로드해야 합니다.", "danger")
-                return redirect(url_for("product_new"))
+                return render_template("product_new.html", form=form)
+
+            is_sold = form.is_sold.data == "1"
+            removed = form.removed.data == "1"
+
             p = Product(
                 name=form.name.data,
                 description=form.description.data,
                 price=form.price.data,
                 image_paths=",".join(paths),
+                is_sold=is_sold,
+                removed=removed,
                 seller=current_user,
             )
             db.session.add(p)
@@ -272,7 +292,19 @@ def create_app():
     @app.route("/products/<int:pid>")
     def product_detail(pid):
         p = Product.query.get_or_404(pid)
-        return render_template("product_detail.html", p=p)
+        seller_products = (
+            Product.query.filter(
+                Product.seller_id == p.seller_id,
+                Product.id != p.id,
+                Product.removed == False,
+            )
+            .order_by(Product.created_at.desc())
+            .limit(4)
+            .all()
+        )
+        return render_template(
+            "product_detail.html", p=p, seller_products=seller_products
+        )
 
     @app.route("/my/products")
     @login_required
@@ -286,12 +318,42 @@ def create_app():
         p = Product.query.get_or_404(pid)
         if not p.owner_check(current_user):
             abort(403)
+
         form = ProductForm(obj=p)
+
+        # ✅ GET 요청일 때만 선택 필드 초기화
+        if request.method == "GET":
+            form.is_sold.data = "1" if p.is_sold else "0"
+            form.removed.data = "1" if p.removed else "0"
+
         if form.validate_on_submit():
             form.populate_obj(p)
+            p.is_sold = form.is_sold.data == "1"
+            p.removed = form.removed.data == "1"
+
+            # ✅ 삭제 요청된 이미지 제외
+            keep_images = set(p.image_path_list)
+            deleted = set(request.form.getlist("delete_images"))
+            keep_images -= deleted
+
+            # ✅ 새 이미지 추가
+            files = request.files.getlist("image")
+            for f in files:
+                if f and f.filename and "." in f.filename:
+                    ext = f.filename.rsplit(".", 1)[1].lower()
+                    if ext in {"jpg", "jpeg", "png", "gif"}:
+                        fname = secure_filename(f.filename)
+                        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+                        f.save(UPLOAD_DIR / fname)
+                        keep_images.add(f"/static/img/{fname}")
+
+            # ✅ 업데이트된 이미지 목록 저장
+            p.image_paths = ",".join(keep_images)
+
             db.session.commit()
             flash("상품 정보가 수정되었습니다.", "success")
             return redirect(url_for("my_products"))
+
         return render_template("product_edit.html", form=form, p=p)
 
     @app.route("/products/<int:pid>/delete", methods=["POST"])
@@ -309,6 +371,8 @@ def create_app():
     @login_required
     def report(target_type, tid):
         reason = request.form.get("reason", "").strip() or "No reason"
+
+        # 신고 객체 생성
         rpt = Report(
             reporter_id=current_user.id,
             target_type=target_type,
@@ -316,16 +380,26 @@ def create_app():
             reason=reason,
         )
         db.session.add(rpt)
-        db.session.commit()
+
+        # 처리 분기
         if target_type == "product":
-            prod = Product.query.get(tid)
+            prod = Product.query.get_or_404(tid)
             prod.reports_cnt += 1
-            if prod.reports_cnt >= 5:
+            # 5회 이상이면 자동 숨김
+            if prod.reports_cnt >= 5 and not prod.removed:
                 prod.removed = True
+                flash("해당 상품이 신고 누적으로 자동 숨김 처리되었습니다.", "warning")
+
         elif target_type == "user":
-            cnt = Report.query.filter_by(target_type="user", target_id=tid).count()
-            if cnt >= 5:
-                User.query.get(tid).is_suspend = True
+            total_reports = Report.query.filter_by(
+                target_type="user", target_id=tid
+            ).count()
+            user = User.query.get_or_404(tid)
+            # 5회 이상이면 자동 정지
+            if total_reports >= 5 and not user.is_suspend:
+                user.is_suspend = True
+                flash("해당 유저가 신고 누적으로 자동 정지 처리되었습니다.", "warning")
+
         db.session.commit()
         flash("신고가 접수되었습니다.", "info")
         return redirect(request.referrer or url_for("index"))
@@ -446,9 +520,9 @@ def create_app():
 
         return render_template("my_profile.html", user=current_user)
 
-    @app.route("/profile/<nickname>")
-    def view_profile(nickname):
-        u = User.query.filter_by(nickname=nickname).first_or_404()
+    @app.route("/profile/<username>")
+    def view_profile(username):
+        u = User.query.filter_by(username=username).first_or_404()
         return render_template("view_profile.html", user=u)
 
     @app.route("/check_nickname", methods=["POST"])
