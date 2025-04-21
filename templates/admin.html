@@ -1,18 +1,117 @@
 {% extends "base.html" %}
-{% block title %}관리자 대시보드{% endblock %}
+{% block title %}관리자 페이지{% endblock %}
 {% block content %}
-<h2>신고 목록</h2>
-<table border="1">
-  <tr><th>ID</th><th>타입</th><th>대상ID</th><th>신고자</th><th>사유</th><th>생성</th></tr>
+
+<h2>📋 관리자 대시보드</h2>
+
+<div style="display: flex; gap: 12px; margin-bottom: 20px;">
+  <a href="#reports">📝 신고 목록</a>
+  <a href="#users">👥 유저 관리</a>
+  <a href="#products">📦 상품 관리</a>
+</div>
+
+<hr>
+
+<h3 id="reports">📝 신고 목록</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th>번호</th>
+    <th>신고자</th>
+    <th>대상</th>
+    <th>사유</th>
+    <th>날짜</th>
+    <th>처리</th>
+  </tr>
   {% for r in reports %}
     <tr>
       <td>{{ r.id }}</td>
-      <td>{{ r.target_type }}</td>
-      <td>{{ r.target_id }}</td>
-      <td>{{ r.reporter.username }}</td>
+      <td>
+        {{ r.reporter.username }}
+        {% if r.reporter.nickname %} ({{ r.reporter.nickname }}){% endif %}
+      </td>
+      <td>
+        {% if r.target_type == 'user' and r.target_user %}
+          {{ r.target_user.username }}
+          {% if r.target_user.nickname %} ({{ r.target_user.nickname }}){% endif %}
+        {% elif r.target_type == 'product' and r.target_product %}
+          {{ r.target_product.name }} (ID: {{ r.target_product.id }})
+        {% else %}
+          ?
+        {% endif %}
+      </td>
       <td>{{ r.reason }}</td>
-      <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ r.created_at.strftime('%Y-%m-%d') }}</td>
+      <td>
+        <form method="post" action="{{ url_for('resolve_report', rid=r.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button>처리 완료</button>
+        </form>
+      </td>
+    </tr>
+  
+  {% else %}
+    <tr><td colspan="6">신고 없음</td></tr>
+  {% endfor %}
+</table>
+
+<hr>
+
+<h3 id="users">👥 유저 관리</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th>ID</th>
+    <th>아이디</th>
+    <th>닉네임</th>
+    <th>상태</th>
+    <th>조치</th>
+  </tr>
+  {% for u in users %}
+    <tr>
+      <td>{{ u.id }}</td>
+      <td>{{ u.username }}</td>
+      <td>{{ u.nickname or "-" }}</td>
+      <td>{{ "정지됨" if u.is_suspend else "정상" }}</td>
+      <td>
+        <form method="post" action="{{ url_for('suspend_user', uid=u.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button>{{ "정지해제" if u.is_suspend else "정지" }}</button>
+        </form>
+      </td>
     </tr>
   {% endfor %}
 </table>
+
+<hr>
+
+  <h3 id="products">📦 상품 관리</h3>
+  <table border="1" cellpadding="6" cellspacing="0">
+    <tr>
+      <th>ID</th>
+      <th>제목</th>
+      <th>판매자</th>
+      <th>상태</th>
+      <th>조치</th>
+    </tr>
+    {% for p in products %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.name }}</td>
+        <td>
+          {{ p.seller.username }}
+          {% if p.seller.nickname %}
+            ({{ p.seller.nickname }})
+          {% endif %}
+        </td>
+        <td>{{ "숨김" if p.removed else "공개" }}</td>
+        <td>
+          <form method="post" action="{{ url_for('toggle_product', pid=p.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button>{{ "복구" if p.removed else "숨기기" }}</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+
+
 {% endblock %}

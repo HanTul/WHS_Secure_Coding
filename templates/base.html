@@ -40,15 +40,6 @@
     
   </nav>
 
-  {% with msgs = get_flashed_messages(with_categories=true) %}
-    {% if msgs %}
-      <ul id="flash">
-        {% for cat, msg in msgs %}
-          <li class="{{ cat }}">{{ msg }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
 
   <main>{% block content %}{% endblock %}</main>
 

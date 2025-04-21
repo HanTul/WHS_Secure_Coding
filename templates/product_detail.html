@@ -20,6 +20,7 @@
 
   <h3>신고하기</h3>
   <form method="post" action="{{ url_for('report', target_type='product', tid=p.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input name="reason" placeholder="신고 사유">
     <button>신고</button>
   </form>

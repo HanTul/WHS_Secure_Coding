@@ -336,7 +336,68 @@ def create_app():
         if not current_user.is_admin:
             abort(403)
         reports = Report.query.filter_by(resolved=False).all()
-        return render_template("admin.html", reports=reports)
+
+        enriched_reports = []
+        for r in reports:
+            reporter = User.query.get(r.reporter_id)
+            target_user = (
+                User.query.get(r.target_id) if r.target_type == "user" else None
+            )
+            target_product = (
+                Product.query.get(r.target_id) if r.target_type == "product" else None
+            )
+
+            enriched_reports.append(
+                {
+                    "id": r.id,
+                    "reason": r.reason,
+                    "created_at": r.created_at,
+                    "target_type": r.target_type,
+                    "resolved": r.resolved,
+                    "reporter": reporter,
+                    "target_user": target_user,
+                    "target_product": target_product,
+                }
+            )
+
+        users = User.query.all()
+        products = Product.query.all()
+        return render_template(
+            "admin.html", reports=enriched_reports, users=users, products=products
+        )
+
+    @app.route("/admin/suspend_user/<int:uid>", methods=["POST"])
+    @login_required
+    def suspend_user(uid):
+        if not current_user.is_admin:
+            abort(403)
+        u = User.query.get_or_404(uid)
+        u.is_suspend = not u.is_suspend
+        db.session.commit()
+        flash("유저 상태 변경 완료", "info")
+        return redirect(url_for("admin"))
+
+    @app.route("/admin/toggle_product/<int:pid>", methods=["POST"])
+    @login_required
+    def toggle_product(pid):
+        if not current_user.is_admin:
+            abort(403)
+        p = Product.query.get_or_404(pid)
+        p.removed = not p.removed
+        db.session.commit()
+        flash("상품 상태 변경 완료", "info")
+        return redirect(url_for("admin"))
+
+    @app.route("/admin/resolve_report/<int:rid>", methods=["POST"])
+    @login_required
+    def resolve_report(rid):
+        if not current_user.is_admin:
+            abort(403)
+        r = Report.query.get_or_404(rid)
+        r.resolved = True
+        db.session.commit()
+        flash("신고 처리 완료", "info")
+        return redirect(url_for("admin"))
 
     @app.route("/profile", methods=["GET", "POST"])
     @login_required

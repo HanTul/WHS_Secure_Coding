@@ -14,4 +14,13 @@
 {% if current_user.id == user.id %}
   <p><a href="{{ url_for('my_profile') }}">[내 프로필 수정]</a></p>
 {% endif %}
+
+{% if current_user.is_authenticated and current_user.id != user.id %}
+  <h3>신고하기</h3>
+  <form method="post" action="{{ url_for('report', target_type='user', tid=user.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="reason" placeholder="신고 사유">
+    <button>신고</button>
+  </form>
+{% endif %}
 {% endblock %}
