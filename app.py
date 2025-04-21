@@ -27,6 +27,7 @@ from forms import RegisterForm, LoginForm, ProductForm
 from utils import time_ago
 from sqlalchemy import func
 from random import randint
+from models import Notification
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "static" / "img"
@@ -144,6 +145,9 @@ def get_recent_chats(user_id):
     return previews
 
 
+csrf = CSRFProtect()
+
+
 def create_app():
     app = Flask(__name__)
     app.config.update(
@@ -155,7 +159,7 @@ def create_app():
 
     db.init_app(app)
     bcrypt.init_app(app)
-    CSRFProtect(app)
+    csrf.init_app(app)
     socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
     lm = LoginManager(app)
@@ -397,6 +401,97 @@ def create_app():
             "msg": "사용 가능" if not exists else "이미 사용 중입니다.",
         }
 
+    @app.route("/chat/<int:partner_id>")
+    @login_required
+    def dm_chat(partner_id):
+        partner = User.query.get_or_404(partner_id)
+        if partner.id == current_user.id:
+            abort(400)
+        room = room_id(current_user.id, partner.id)
+
+        # 읽음 처리
+        Message.query.filter_by(
+            sender_id=partner.id, receiver_id=current_user.id, is_read=False
+        ).update({"is_read": True}, synchronize_session="fetch")
+        db.session.commit()
+
+        prod_id = request.args.get("item", type=int)
+        product = None
+        if prod_id:
+            cand = Product.query.get(prod_id)
+            if cand and cand.seller_id == partner.id:
+                product = cand
+
+        if not product:
+            last = (
+                Message.query.filter(
+                    (
+                        (Message.sender_id == current_user.id)
+                        & (Message.receiver_id == partner.id)
+                    )
+                    | (
+                        (Message.sender_id == partner.id)
+                        & (Message.receiver_id == current_user.id)
+                    )
+                )
+                .filter(Message.product_id.is_not(None))
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+            if last:
+                product = Product.query.get(last.product_id)
+
+        history = (
+            Message.query.filter(
+                (
+                    (Message.sender_id == current_user.id)
+                    & (Message.receiver_id == partner.id)
+                )
+                | (
+                    (Message.sender_id == partner.id)
+                    & (Message.receiver_id == current_user.id)
+                )
+            )
+            .order_by(Message.created_at.asc())
+            .limit(100)
+            .all()
+        )
+
+        return render_template(
+            "dm_chat.html",
+            partner=partner,
+            room=room,
+            history=history,
+            product=product,
+        )
+
+    @app.route("/notif/read", methods=["POST"])
+    @csrf.exempt
+    @login_required
+    def mark_notification_read():
+        try:
+            data = request.get_json(silent=False)
+            pid = int(data.get("partner_id"))
+            prod_id = int(data.get("product_id"))
+        except Exception as e:
+            return {"error": f"Invalid data: {e}"}, 400
+
+        notifs = Notification.query.filter_by(
+            receiver_id=current_user.id,
+            sender_id=pid,
+            product_id=prod_id,
+            is_read=False,
+        ).all()
+
+        if not notifs:
+            return {"error": "No matching notifications"}, 400
+
+        for n in notifs:
+            n.is_read = True
+        db.session.commit()
+
+        return {"ok": True}
+
     # ───── socket handlers ─────
 
     @socketio.on("connect")
@@ -404,6 +499,7 @@ def create_app():
         if current_user.is_authenticated:
             user_sid_map[current_user.id] = request.sid
             join_room(f"user_{current_user.id}")
+            socketio.emit("load_notifications", room=request.sid)
             emit_refresh(current_user.id)
 
     @socketio.on("disconnect")
@@ -516,9 +612,23 @@ def create_app():
             room=room,
         )
 
-        # 3. 상대방이 다른 방에 있는 경우에만 알림 전송
+        # 3. 상대방이 다른 방에 있는 경우에만 알림 저장 + 전송
         if user_current_room.get(target_id) != room:
             prod = Product.query.get(prod_id) if prod_id else None
+
+            # ✅ 알림 DB 저장
+            n = Notification(
+                receiver_id=target_id,
+                sender_id=sender_id,
+                partner_name=current_user.nickname or current_user.username,
+                product_id=prod.id if prod else 0,
+                product_name=prod.name if prod else "(상품없음)",
+                snippet=text[:30],
+            )
+            db.session.add(n)
+            db.session.commit()
+
+            # ✅ 알림 전송
             emit(
                 "dm_notify",
                 {
@@ -528,12 +638,12 @@ def create_app():
                     "product_id": prod.id if prod else 0,
                     "product_name": prod.name if prod else "(상품없음)",
                     "snippet": text[:30],
-                    "time": m.created_at.isoformat() + "Z",
+                    "time": n.timestamp.isoformat() + "Z",  # ← 알림 저장된 시각 기준
                 },
                 room=f"user_{target_id}",
             )
 
-        # 4. 🔥 dm_refresh - 실시간 미리보기 한 줄씩 직접 전송
+        # 4. dm_refresh 양쪽 전송
         prod = Product.query.get(prod_id) if prod_id else None
         emit(
             "dm_refresh",
@@ -548,7 +658,6 @@ def create_app():
             },
             room=f"user-{sender_id}",
         )
-
         emit(
             "dm_refresh",
             {
@@ -563,72 +672,35 @@ def create_app():
             room=f"user-{target_id}",
         )
 
-        # 5. (선택) 전체 미리보기 새로고침도 유지
+        # 5. 전체 미리보기 새로고침
         emit_refresh(sender_id)
         emit_refresh(target_id)
 
-    @app.route("/chat/<int:partner_id>")
-    @login_required
-    def dm_chat(partner_id):
-        partner = User.query.get_or_404(partner_id)
-        if partner.id == current_user.id:
-            abort(400)
-        room = room_id(current_user.id, partner.id)
+    @socketio.on("load_notifications")
+    def load_notifications():
+        if not current_user.is_authenticated:
+            return
 
-        # 읽음 처리
-        Message.query.filter_by(
-            sender_id=partner.id, receiver_id=current_user.id, is_read=False
-        ).update({"is_read": True}, synchronize_session="fetch")
-        db.session.commit()
-
-        prod_id = request.args.get("item", type=int)
-        product = None
-        if prod_id:
-            cand = Product.query.get(prod_id)
-            if cand and cand.seller_id == partner.id:
-                product = cand
-
-        if not product:
-            last = (
-                Message.query.filter(
-                    (
-                        (Message.sender_id == current_user.id)
-                        & (Message.receiver_id == partner.id)
-                    )
-                    | (
-                        (Message.sender_id == partner.id)
-                        & (Message.receiver_id == current_user.id)
-                    )
-                )
-                .filter(Message.product_id.is_not(None))
-                .order_by(Message.created_at.desc())
-                .first()
-            )
-            if last:
-                product = Product.query.get(last.product_id)
-
-        history = (
-            Message.query.filter(
-                (
-                    (Message.sender_id == current_user.id)
-                    & (Message.receiver_id == partner.id)
-                )
-                | (
-                    (Message.sender_id == partner.id)
-                    & (Message.receiver_id == current_user.id)
-                )
-            )
-            .order_by(Message.created_at.asc())
-            .limit(100)
+        notifs = (
+            Notification.query.filter_by(receiver_id=current_user.id, is_read=False)
+            .order_by(Notification.timestamp.desc())
+            .limit(30)
             .all()
         )
 
-        return render_template(
-            "dm_chat.html",
-            partner=partner,
-            room=room,
-            history=history,
-            product=product,
+        emit(
+            "notif_list",
+            [
+                {
+                    "partner_id": n.sender_id,
+                    "partner_name": n.partner_name,
+                    "product_id": n.product_id,
+                    "product_name": n.product_name,
+                    "time": n.timestamp.isoformat() + "Z",
+                }
+                for n in notifs
+            ],
+            room=request.sid,  # ❗ socket.emit()에 응답이 도착하도록 보장
         )
 
     return app, socketio
