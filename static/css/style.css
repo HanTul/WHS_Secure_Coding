@@ -289,7 +289,7 @@ body {
     z-index: 1000;
     padding: 8px;
     box-sizing: border-box;
-    display: flex;
+    display: none;
     flex-direction: column;
   }
   

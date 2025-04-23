@@ -11,12 +11,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const listPreview = document.getElementById("chat-history-list");
   const myId        = Number(document.body.dataset.userid);
   let pubUnread     = 0;
-  let popupOpen     = false;
+  let popupOpen     = false;  // ✅ 기본 닫힘
   let currentRoom   = null;
 
   window.setCurrentRoom = (room) => currentRoom = room;
   window.clearCurrentRoom = () => currentRoom = null;
 
+  // 탭 전환
   tabs.forEach(btn => {
     btn.onclick = () => {
       tabs.forEach(t => t.classList.toggle("active", t === btn));
@@ -25,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   });
 
+  // 팝업 열기/닫기
   chatBtn.onclick = () => {
     popupOpen = !popupOpen;
     popup.style.display = popupOpen ? "flex" : "none";
@@ -37,10 +39,13 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   socket.emit("load_public_history");
+
   socket.on("public_history", logs => {
     boxPublic.innerHTML = "";
     logs.forEach(addPublicChat);
-    boxPublic.scrollTop = boxPublic.scrollHeight;
+    if (popupOpen) {
+      boxPublic.scrollTop = boxPublic.scrollHeight;  // ✅ 열렸을 때만 스크롤 이동
+    }
   });
 
   socket.on("message", d => {
@@ -50,8 +55,9 @@ document.addEventListener("DOMContentLoaded", () => {
       badgePublic.textContent = pubUnread;
       badgePublic.hidden = false;
       chatBtn.classList.add("has-unread");
+    } else if (popupOpen) {
+      setTimeout(() => boxPublic.scrollTop = boxPublic.scrollHeight, 10);
     }
-    setTimeout(() => boxPublic.scrollTop = boxPublic.scrollHeight, 10);
   });
 
   function addPublicChat(d) {
@@ -74,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   socket.on("connect", () => {
     socket.emit("request_dm_preview");
-    socket.emit("join_dm", { room: `user-${myId}` });  // 🔥 추가!
+    socket.emit("join_dm", { room: `user-${myId}` });
   });
 
   socket.on("dm_preview_update", previews => {
@@ -103,10 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!d) return;
     const key = `${d.partner_id}-${d.product_id}`;
     listPreview.querySelector(`li[data-key="${key}"]`)?.remove();
-  
-    const myPartnerId = d.partner_id;
-    const myRoom = `dm-${Math.min(myId, myPartnerId)}-${Math.max(myId, myPartnerId)}`;
-  
+
     listPreview.insertAdjacentHTML("afterbegin", `
       <li class="chat-preview ${!d.read ? "unread" : ""}" data-key="${key}">
         <a class="chat-link" href="/chat/${d.partner_id}?item=${d.product_id}">
@@ -118,18 +121,16 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="chat-meta">${d.product_name}</div>
         </a>
       </li>`);
-  
   });
 
   listPreview.addEventListener("click", e => {
     const li = e.target.closest("li.chat-preview");
     if (!li) return;
     li.classList.remove("unread");
-    const remain = listPreview.querySelectorAll("li.unread").length;
   });
 
   function formatAgo(iso) {
-    const t = new Date(iso + "Z");  // Z는 이미 붙어 있음
+    const t = new Date(iso + "Z");
     if (isNaN(t)) return "방금 전";
     const diff = (Date.now() - t.getTime()) / 60000;
     if (diff < 1) return "방금 전";

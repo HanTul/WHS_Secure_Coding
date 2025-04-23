@@ -95,14 +95,25 @@
         </form>
       </div>
 
-    {% elif current_user.is_authenticated and current_user.id == p.seller_id %}
-      <div style="margin-bottom:24px;">
-        <a href="{{ url_for('product_edit', pid=p.id) }}"
-           style="display:inline-block; padding:10px 20px; background:#888; color:white; border-radius:6px; text-decoration:none;">
-          ✏️ 수정하기
-        </a>
-      </div>
-    {% endif %}
+      {% elif current_user.is_authenticated and current_user.id == p.seller_id %}
+        <div style="margin-bottom:24px; display: flex; gap: 12px;">
+          <!-- 수정하기 버튼 -->
+          <a href="{{ url_for('product_edit', pid=p.id) }}"
+            style="display:inline-block; padding:10px 20px; background:#888; color:white; border-radius:6px; text-decoration:none; font-weight:bold; transition:background 0.2s;">
+            ✏️ 수정하기
+          </a>
+          <!-- 삭제하기 버튼 -->
+          <form method="post" action="{{ url_for('product_delete', pid=p.id) }}" onsubmit="return confirm('정말 삭제(숨김)하시겠습니까?');" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit"
+                    style="padding:10px 20px; background:#d33; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; transition:background 0.2s;">
+              🗑️ 삭제하기
+            </button>
+          </form>
+        </div>
+      {% endif %}
+
+    
   </div>
 </div>
 
