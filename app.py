@@ -12,6 +12,7 @@ from flask import (
     g,
     send_from_directory,
     jsonify,
+    request,
 )
 from flask_login import (
     LoginManager,
@@ -29,6 +30,7 @@ from utils import time_ago
 from sqlalchemy import func
 from random import randint
 from models import Transaction, Notification, Message, User, Product
+import random
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "static" / "img"
@@ -234,6 +236,7 @@ def update_transaction_status(transaction_id, action, current_user_id):
         # 판매자 balance 지급
         seller = User.query.get(t.seller_id)
         seller.balance = getattr(seller, "balance", 0) + t.amount
+        product.is_sold = 1
         db.session.commit()
         create_system_message(
             room,
@@ -352,7 +355,16 @@ def create_app():
             while User.query.filter_by(nickname=nickname).first():
                 nickname = f"user{randint(10000, 99999)}"
 
-            u = User(username=form.username.data, nickname=nickname)
+            # 🟢 계좌번호 랜덤 생성 (예: 8자리 숫자)
+            account_number = str(randint(10000000, 99999999))
+            while User.query.filter_by(account_number=account_number).first():
+                account_number = str(randint(10000000, 99999999))
+
+            u = User(
+                username=form.username.data,
+                nickname=nickname,
+                account_number=account_number,  # 여기 추가!
+            )
             u.set_password(form.password.data)
             db.session.add(u)
             db.session.commit()
@@ -532,8 +544,8 @@ def create_app():
     def admin():
         if not current_user.is_admin:
             abort(403)
-        reports = Report.query.filter_by(resolved=False).all()
 
+        reports = Report.query.filter_by(resolved=False).all()
         enriched_reports = []
         for r in reports:
             reporter = User.query.get(r.reporter_id)
@@ -543,7 +555,6 @@ def create_app():
             target_product = (
                 Product.query.get(r.target_id) if r.target_type == "product" else None
             )
-
             enriched_reports.append(
                 {
                     "id": r.id,
@@ -559,6 +570,7 @@ def create_app():
 
         users = User.query.all()
         products = Product.query.all()
+
         return render_template(
             "admin.html", reports=enriched_reports, users=users, products=products
         )
@@ -871,6 +883,65 @@ def create_app():
         )
 
         return jsonify({"ok": True, "transaction_id": tran.id})
+
+    @app.route("/charge_balance", methods=["POST"])
+    @csrf.exempt
+    @login_required
+    def charge_balance():
+        try:
+            amount = int(request.form.get("amount", 0))
+            if amount <= 0:
+                flash("금액은 1원 이상 입력하세요.", "danger")
+            else:
+                current_user.balance += amount
+                db.session.commit()
+                flash(
+                    f"{amount}원이 충전되었습니다. 현재 잔고: {current_user.balance}원",
+                    "success",
+                )
+        except Exception:
+            flash("충전 중 오류가 발생했습니다.", "danger")
+        return redirect(url_for("my_profile"))
+
+    # 유저 삭제
+    @app.route("/admin/delete_user/<int:uid>", methods=["POST"])
+    @login_required
+    def delete_user(uid):
+        if not current_user.is_admin:
+            abort(403)
+        user = User.query.get_or_404(uid)
+        if user.is_admin:
+            flash("관리자는 삭제할 수 없습니다.", "danger")
+        else:
+            db.session.delete(user)
+            db.session.commit()
+            flash("유저가 삭제되었습니다.", "info")
+        return redirect(url_for("admin"))
+
+    # 임시 비밀번호 발급
+    @app.route("/admin/temp_password/<int:uid>", methods=["POST"])
+    @login_required
+    def temp_password(uid):
+        if not current_user.is_admin:
+            abort(403)
+        user = User.query.get_or_404(uid)
+        temp_pw = secrets.token_hex(4)
+        user.set_password(temp_pw)
+        db.session.commit()
+        flash(f"임시 비밀번호: {temp_pw}", "success")
+        return redirect(url_for("admin"))
+
+    # 상품 삭제
+    @app.route("/admin/delete_product/<int:pid>", methods=["POST"])
+    @login_required
+    def delete_product(pid):
+        if not current_user.is_admin:
+            abort(403)
+        product = Product.query.get_or_404(pid)
+        db.session.delete(product)
+        db.session.commit()
+        flash("상품이 삭제되었습니다.", "info")
+        return redirect(url_for("admin"))
 
     # ───── socket handlers ─────
 

@@ -132,8 +132,7 @@ body {
     object-fit: contain;
   }
   
-  /* ─────────────── 알림/채팅 드롭다운 ─────────────── */
-  /* ───────────── 알림 아이콘 ───────────── */
+
 .notif-icon {
   cursor: pointer;
   position: relative;
@@ -523,5 +522,757 @@ body {
     cursor: pointer;
   }
   
-  
+/* ─────────────── 프로필 페이지 (my_profile.html) ─────────────── */
+.profile-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  padding: 30px 20px;
+}
+
+.profile-container {
+  background: #fff8f1;
+  border: 1px solid #f0d9c6;
+  border-radius: 12px;
+  padding: 20px 30px;
+  max-width: 500px;
+  width: 100%;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.profile-container h3 {
+  color: #333;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.profile-container label {
+  font-weight: bold;
+  display: block;
+  margin: 10px 0 5px;
+}
+
+.profile-container input[type="text"],
+.profile-container input[type="password"],
+.profile-container input[type="number"],
+.profile-container textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.profile-container button {
+  padding: 10px 16px;
+  background-color: #ff8a3d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.profile-container button:hover {
+  background-color: #ff6f0f;
+}
+
+.profile-image-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+
+.profile-image-preview img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ff8a3d;
+}
+
+hr {
+  border-top: 1px solid #f0d9c6;
+  margin: 20px 0;
+}
+
+
+/* ───────────── 상품 등록 페이지 (당근마켓 스타일) ───────────── */
+.product-new-wrapper {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background: #fff;
+  text-align: center;
+}
+
+.product-form {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 30px 24px;
+  text-align: left;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.product-form .form-group {
+  margin-bottom: 20px;
+}
+
+.product-form label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.product-form input[type="text"],
+.product-form input[type="number"],
+.product-form textarea,
+.product-form select,
+.product-form input[type="file"] {
+  padding: 10px;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.product-form textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.product-form .submit-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background-color: #ff8a3d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.product-form .submit-btn:hover {
+  background-color: #f76e11;
+}
+
+
+/* ─────────────── 상품 등록 / 수정 폼 (당근마켓 스타일) ─────────────── */
+.product-edit-wrapper, .product-new-wrapper {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background: #fff;
+  text-align: center;
+}
+
+.product-form {
+  background: #fff8f0;
+  border: 1px solid #ffdda9;
+  border-radius: 12px;
+  padding: 30px 24px;
+  text-align: left;
+  box-shadow: 0 2px 8px rgba(255, 153, 0, 0.1);
+}
+
+.product-form .form-group {
+  margin-bottom: 20px;
+}
+
+.product-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #333;
+}
+
+.product-form input[type="text"],
+.product-form input[type="number"],
+.product-form input[type="file"],
+.product-form select,
+.product-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ffc878;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+  background: #fff;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.product-form input[type="text"]:focus,
+.product-form input[type="number"]:focus,
+.product-form select:focus,
+.product-form textarea:focus {
+  border-color: #ffa94d;
+  outline: none;
+}
+
+.product-form textarea {
+  resize: vertical;
+}
+
+.product-form .submit-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: #ff7f27;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.product-form .submit-btn:hover {
+  background-color: #ff6600;
+}
+
+/* ─────────────── 이미지 미리보기 ─────────────── */
+#image-preview-area {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.image-box {
+  position: relative;
+  display: inline-block;
+}
+
+.image-box img {
+  width: 120px;
+  border-radius: 8px;
+  border: 1px solid #ffc878;
+}
+
+.image-box .delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.image-box .delete-btn:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+
+.admin-link {
+  color: #ff7f27;
+  font-weight: bold;
+}
+
+.admin-link:hover {
+  color: #ff6600;
+}
+
+
+/* ───────────── 내 상품 목록 스타일 (당근마켓 스타일) ───────────── */
+.section-title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 30px;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.product-card {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.product-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  background-color: #f5f5f5;
+}
+
+.product-info {
+  padding: 14px 16px;
+}
+
+.product-info strong {
+  font-size: 18px;
+  color: #333;
+}
+
+.product-price {
+  color: #f6723b; /* 당근 오렌지 */
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+.product-date, .product-status {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.product-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.btn-edit {
+  background: #4caf50;
+  color: white;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-edit:hover {
+  background: #45a045;
+}
+
+.btn-delete {
+  background: #f44336;
+  color: white;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-delete:hover {
+  background: #d9382c;
+}
+
+.product-status .hidden {
+  color: #aaa;
+}
+
+
+.section-title {
+  text-align: center;
+  margin-bottom: 24px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #ff6f0f;
+}
+
+.section-subtitle {
+  font-size: 18px;
+  color: #333;
+  margin: 32px 0 12px;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.admin-tabs a {
+  text-decoration: none;
+  background: #f5f5f5;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #333;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 auto;
+  max-width: 960px;
+}
+
+.admin-table th,
+.admin-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.admin-table th {
+  background: #fffbf5;
+  color: #333;
+}
+
+.empty-row {
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
+.btn-green {
+  background: #22c55e;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-orange {
+  background: #f97316;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-red {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+
+/* ───────────── 관리자 페이지 공통 ───────────── */
+.section-title {
+  text-align: center;
+  font-size: 24px;
+  color: #333;
+  margin-top: 30px;
+  margin-bottom: 20px;
+}
+
+.section-subtitle {
+  font-size: 20px;
+  color: #333;
+  margin: 40px 0 10px 0;
+  text-align: center;
+}
+
+.admin-tabs {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.admin-tabs a {
+  text-decoration: none;
+  color: #333;
+  background: #fef3e3;
+  padding: 8px 18px;
+  margin: 0 8px;
+  border-radius: 20px;
+  font-weight: bold;
+  border: 1px solid #f7c09d;
+  transition: background 0.2s;
+}
+
+.admin-tabs a:hover {
+  background: #ffb980;
+  color: #fff;
+}
+
+.admin-section {
+  margin: 40px auto;
+  max-width: 900px;
+  padding: 0 20px;
+}
+
+.admin-search {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.admin-search input[type="text"] {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  width: 250px;
+}
+
+.admin-search button {
+  padding: 6px 14px;
+  border: none;
+  background: #ff8a3d;
+  color: #fff;
+  border-radius: 20px;
+  margin-left: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.admin-search button:hover {
+  background: #ff6a00;
+}
+
+/* ───────────── 표 ───────────── */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.admin-table th, .admin-table td {
+  border: 1px solid #eee;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.admin-table th {
+  background-color: #fef3e3;
+  color: #333;
+}
+
+.admin-table tr:nth-child(even) {
+  background-color: #fffdf8;
+}
+
+.admin-table .empty-row {
+  text-align: center;
+  color: #aaa;
+  padding: 20px;
+}
+
+/* ───────────── 버튼 스타일 ───────────── */
+button, .btn-green, .btn-orange, .btn-red, .btn-blue {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.btn-green {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.btn-green:hover {
+  background-color: #45a049;
+}
+
+.btn-orange {
+  background-color: #ff8a3d;
+  color: white;
+}
+
+.btn-orange:hover {
+  background-color: #ff6a00;
+}
+
+.btn-red {
+  background-color: #f44336;
+  color: white;
+}
+
+.btn-red:hover {
+  background-color: #d32f2f;
+}
+
+.btn-blue {
+  background-color: #2196F3;
+  color: white;
+}
+
+.btn-blue:hover {
+  background-color: #1976D2;
+}
+
+
+/* ───────── 로그인/회원가입 공통 스타일 ───────── */
+.auth-container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.auth-container h2 {
+  font-size: 24px;
+  color: #ff6f0f;
+  margin-bottom: 24px;
+}
+
+.auth-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-container form p {
+  margin: 0;
+  text-align: left;
+}
+
+.auth-container label {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.auth-container input[type="text"],
+.auth-container input[type="password"] {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.auth-container button {
+  background-color: #ff6f0f;
+  color: white;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.auth-container button:hover {
+  background-color: #ff8a3d;
+}
+
+/* 추가: 링크 */
+.auth-container .link {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #666;
+}
+
+.auth-container .link a {
+  color: #ff6f0f;
+  text-decoration: none;
+}
+
+.auth-container .link a:hover {
+  text-decoration: underline;
+}
+
+
+/* ───────── 프로필 페이지 ───────── */
+.profile-container {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.profile-image img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ff6f0f;
+}
+
+/* 기본 이미지 처리 (프로퍼티가 profile_img_url일 때 기본값 들어감) */
+.profile-details {
+  text-align: center;
+}
+
+.profile-intro-title {
+  font-weight: bold;
+  font-size: 16px;
+  margin-top: 12px;
+  color: #555;
+}
+
+.profile-intro {
+  white-space: pre-wrap;
+  color: #333;
+  font-size: 15px;
+  margin-top: 4px;
+}
+
+/* 신고 폼 스타일 */
+.report-section {
+  margin-top: 40px;
+}
+
+.report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.report-form input[type="text"] {
+  width: 80%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.report-form button {
+  background-color: #ff6f0f;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.report-form button:hover {
+  background-color: #ff8a3d;
+}
+
   

@@ -2,6 +2,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from flask_bcrypt import Bcrypt
+import random
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
@@ -25,12 +26,19 @@ class User(db.Model, UserMixin):
     messages_recv = db.relationship(
         "Message", foreign_keys="Message.receiver_id", backref="receiver", lazy=True
     )
+    account_number = db.Column(db.String(20), unique=True)
+    balance = db.Column(db.Integer, default=0)
 
     def set_password(self, pw):
         self.pw_hash = bcrypt.generate_password_hash(pw).decode()
 
     def check_password(self, pw):
         return bcrypt.check_password_hash(self.pw_hash, pw)
+
+    def set_temp_password(self):
+        temp_password = "".join(random.choices("0123456789", k=6))
+        self.set_password(temp_password)
+        return temp_password
 
     @property
     def profile_img_url(self):

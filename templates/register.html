@@ -1,12 +1,27 @@
 {% extends "base.html" %}
 {% block title %}회원가입{% endblock %}
+
 {% block content %}
-<h2>회원가입</h2>
-<form method="post">
-  {{ form.hidden_tag() }}
-  <p>{{ form.username.label }} {{ form.username() }}</p>
-  <p>{{ form.password.label }} {{ form.password() }}</p>
-  <p>{{ form.confirm.label }} {{ form.confirm() }}</p>
-  <button type="submit">가입</button>
-</form>
+<div class="auth-container">
+  <h2>회원가입</h2>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <p>
+      <label>{{ form.username.label }}</label>
+      {{ form.username() }}
+    </p>
+    <p>
+      <label>{{ form.password.label }}</label>
+      {{ form.password() }}
+    </p>
+    <p>
+      <label>{{ form.confirm.label }}</label>
+      {{ form.confirm() }}
+    </p>
+    <button type="submit">가입</button>
+  </form>
+  <div class="link">
+    이미 계정이 있으신가요? <a href="{{ url_for('login') }}">로그인</a>
+  </div>
+</div>
 {% endblock %}

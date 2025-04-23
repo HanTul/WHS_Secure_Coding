@@ -2,25 +2,31 @@
 {% block title %}{{ user.nickname }}님의 프로필{% endblock %}
 
 {% block content %}
-<h2>{{ user.nickname }}님의 프로필</h2>
+<div class="profile-container">
+  <h2 class="section-title">{{ user.nickname }}님의 프로필</h2>
 
-{% if user.profile_img %}
-  <img src="{{ user.profile_img }}" alt="프로필 이미지" style="width:120px;height:120px;border-radius:50%;object-fit:cover;margin-bottom:10px;">
-{% endif %}
+  <div class="profile-info">
+    <div class="profile-image">
+      <img src="{{ user.profile_img_url }}" alt="프로필 이미지">
+    </div>
+    <div class="profile-details">
+      <p class="profile-intro-title">한줄 소개</p>
+      <p class="profile-intro">{{ user.intro or "소개가 없습니다." }}</p>
+      {% if current_user.id == user.id %}
+        <p><a href="{{ url_for('my_profile') }}" class="btn-orange">내 프로필 수정</a></p>
+      {% endif %}
+    </div>
+  </div>
 
-<p><strong>한줄 소개:</strong></p>
-<p style="white-space:pre-wrap;">{{ user.intro or "소개가 없습니다." }}</p>
-
-{% if current_user.id == user.id %}
-  <p><a href="{{ url_for('my_profile') }}">[내 프로필 수정]</a></p>
-{% endif %}
-
-{% if current_user.is_authenticated and current_user.id != user.id %}
-  <h3>신고하기</h3>
-  <form method="post" action="{{ url_for('report', target_type='user', tid=user.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input name="reason" placeholder="신고 사유">
-    <button>신고</button>
-  </form>
-{% endif %}
+  {% if current_user.is_authenticated and current_user.id != user.id %}
+  <div class="report-section">
+    <h3 class="section-subtitle">🚩 신고하기</h3>
+    <form method="post" action="{{ url_for('report', target_type='user', tid=user.id) }}" class="report-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="reason" placeholder="신고 사유를 입력하세요" required>
+      <button class="btn-red">신고</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
 {% endblock %}

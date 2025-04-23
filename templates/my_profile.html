@@ -2,67 +2,89 @@
 {% block title %}내 프로필{% endblock %}
 
 {% block content %}
+<div class="profile-page">
 <h2>내 프로필</h2>
 
-<form method="post" action="{{ url_for('my_profile') }}" enctype="multipart/form-data" style="max-width:500px">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div>
-    <label>프로필 이미지</label><br>
-    {% if user.profile_img %}
-      <img src="{{ user.profile_img_url }}" alt="프로필" style="width:100px;height:100px;border-radius:50%;object-fit:cover;">
-    {% endif %}
-    <input type="file" name="profile_img">
-  </div>
+<div class="profile-container">
+  <form method="post" action="{{ url_for('my_profile') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="profile-image-preview">
+      {% if user.profile_img %}
+        <img src="{{ user.profile_img_url }}" alt="프로필">
+      {% else %}
+        <img src="/static/img/default.png" alt="기본 프로필">
+      {% endif %}
+      <input type="file" name="profile_img">
+    </div>
 
-  <div>
-    <label>닉네임</label>
-    <input type="text" name="nickname" value="{{ user.nickname or '' }}" required>
-    <div id="nick-check-msg" style="font-size:12px;margin-top:-12px;"></div>
-    <script>
-      document.querySelector("input[name='nickname']").addEventListener("blur", async (e) => {
-        const nickname = e.target.value.trim();
-        const formData = new FormData();
-        formData.append("nickname", nickname);
+    <div>
+      <label>닉네임</label>
+      <input type="text" name="nickname" value="{{ user.nickname or '' }}" required>
+      <div id="nick-check-msg" style="font-size:12px;margin-top:-8px;"></div>
+      <script>
+        document.querySelector("input[name='nickname']").addEventListener("blur", async (e) => {
+          const nickname = e.target.value.trim();
+          const formData = new FormData();
+          formData.append("nickname", nickname);
 
-        const res = await fetch("/check_nickname", { method: "POST", body: formData });
-        const data = await res.json();
+          const res = await fetch("/check_nickname", { method: "POST", body: formData });
+          const data = await res.json();
 
-        let msgBox = document.getElementById("nick-check-msg");
-        if (!msgBox) {
-          msgBox = document.createElement("div");
-          msgBox.id = "nick-check-msg";
-          msgBox.style.fontSize = "12px";
-          msgBox.style.marginTop = "-12px";
-          e.target.parentNode.insertBefore(msgBox, e.target.nextSibling);
-        }
-        msgBox.textContent = data.msg;
-        msgBox.style.color = data.valid ? "green" : "red";
-      });
-    </script>        
-  </div>
+          let msgBox = document.getElementById("nick-check-msg");
+          if (!msgBox) {
+            msgBox = document.createElement("div");
+            msgBox.id = "nick-check-msg";
+            msgBox.style.fontSize = "12px";
+            msgBox.style.marginTop = "-8px";
+            e.target.parentNode.insertBefore(msgBox, e.target.nextSibling);
+          }
+          msgBox.textContent = data.msg;
+          msgBox.style.color = data.valid ? "green" : "red";
+        });
+      </script>        
+    </div>
 
-  <div>
-    <label>한줄 소개</label>
-    <textarea name="intro" rows="2" required>{{ user.intro or '' }}</textarea>
-  </div>
+    <div>
+      <label>한줄 소개</label>
+      <textarea name="intro" rows="2" required>{{ user.intro or '' }}</textarea>
+    </div>
 
-  <button type="submit">저장</button>
-</form>
+    <button type="submit">저장</button>
+  </form>
+</div>
 
 <hr>
 
-<h3>비밀번호 변경</h3>
-<form method="post" action="{{ url_for('my_profile') }}" style="max-width:500px">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div>
-    <label>기존 비밀번호</label>
-    <input type="password" name="old_password" required>
-  </div>
-  <div>
-    <label>새 비밀번호</label>
-    <input type="password" name="new_password" required>
-  </div>
-  <button type="submit">변경</button>
-</form>
+<div class="profile-container">
+  <h3>비밀번호 변경</h3>
+  <form method="post" action="{{ url_for('my_profile') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label>기존 비밀번호</label>
+      <input type="password" name="old_password" required>
+    </div>
+    <div>
+      <label>새 비밀번호</label>
+      <input type="password" name="new_password" required>
+    </div>
+    <button type="submit">변경</button>
+  </form>
+</div>
+
+<hr>
+
+<div class="profile-container">
+  <h3>나의 계좌번호: {{ user.account_number or "없음" }}</h3>
+  <h3>현재 잔고: {{ "{:,}".format(user.balance) }}원</h3>
+
+  <form method="post" action="{{ url_for('charge_balance') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label>충전 금액</label>
+      <input type="number" name="amount" min="1" required>
+    </div>
+    <button type="submit">충전하기</button>
+  </form>
+</div>
 
 {% endblock %}

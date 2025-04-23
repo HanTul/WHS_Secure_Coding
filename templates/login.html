@@ -1,11 +1,23 @@
 {% extends "base.html" %}
 {% block title %}로그인{% endblock %}
+
 {% block content %}
-<h2>로그인</h2>
-<form method="post">
-  {{ form.hidden_tag() }}
-  <p>{{ form.username.label }} {{ form.username() }}</p>
-  <p>{{ form.password.label }} {{ form.password() }}</p>
-  <button type="submit">로그인</button>
-</form>
+<div class="auth-container">
+  <h2>로그인</h2>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <p>
+      <label>{{ form.username.label }}</label>
+      {{ form.username() }}
+    </p>
+    <p>
+      <label>{{ form.password.label }}</label>
+      {{ form.password() }}
+    </p>
+    <button type="submit">로그인</button>
+  </form>
+  <div class="link">
+    아직 계정이 없으신가요? <a href="{{ url_for('register') }}">회원가입</a>
+  </div>
+</div>
 {% endblock %}

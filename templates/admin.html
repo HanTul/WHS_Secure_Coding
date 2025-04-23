@@ -1,117 +1,118 @@
 {% extends "base.html" %}
 {% block title %}관리자 페이지{% endblock %}
+
 {% block content %}
+<h2 class="section-title">📋 관리자 대시보드</h2>
 
-<h2>📋 관리자 대시보드</h2>
-
-<div style="display: flex; gap: 12px; margin-bottom: 20px;">
+<div class="admin-tabs">
   <a href="#reports">📝 신고 목록</a>
   <a href="#users">👥 유저 관리</a>
   <a href="#products">📦 상품 관리</a>
 </div>
 
-<hr>
+<div class="admin-section" id="reports">
+  <h3 class="section-subtitle">📝 신고 목록</h3>
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>번호</th><th>신고자</th><th>대상</th><th>사유</th><th>날짜</th><th>처리</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in reports %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ r.reporter.username }}{% if r.reporter.nickname %} ({{ r.reporter.nickname }}){% endif %}</td>
+        <td>
+          {% if r.target_type == 'user' and r.target_user %}
+            {{ r.target_user.username }}{% if r.target_user.nickname %} ({{ r.target_user.nickname }}){% endif %}
+          {% elif r.target_type == 'product' and r.target_product %}
+            {{ r.target_product.name }} (ID: {{ r.target_product.id }})
+          {% else %}?{% endif %}
+        </td>
+        <td>{{ r.reason }}</td>
+        <td>{{ r.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          <form method="post" action="{{ url_for('resolve_report', rid=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-green">처리 완료</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty-row">신고 없음</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
-<h3 id="reports">📝 신고 목록</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr>
-    <th>번호</th>
-    <th>신고자</th>
-    <th>대상</th>
-    <th>사유</th>
-    <th>날짜</th>
-    <th>처리</th>
-  </tr>
-  {% for r in reports %}
-    <tr>
-      <td>{{ loop.index }}</td>
-      <td>
-        {{ r.reporter.username }}
-        {% if r.reporter.nickname %} ({{ r.reporter.nickname }}){% endif %}
-      </td>
-      <td>
-        {% if r.target_type == 'user' and r.target_user %}
-          {{ r.target_user.username }}
-          {% if r.target_user.nickname %} ({{ r.target_user.nickname }}){% endif %}
-        {% elif r.target_type == 'product' and r.target_product %}
-          {{ r.target_product.name }} (ID: {{ r.target_product.id }})
-        {% else %}
-          ?
-        {% endif %}
-      </td>
-      <td>{{ r.reason }}</td>
-      <td>{{ r.created_at.strftime('%Y-%m-%d') }}</td>
-      <td>
-        <form method="post" action="{{ url_for('resolve_report', rid=r.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button>처리 완료</button>
-        </form>
-      </td>
-    </tr>
-  
-  {% else %}
-    <tr><td colspan="6">신고 없음</td></tr>
-  {% endfor %}
-</table>
+<div class="admin-section" id="users">
+  <h3 class="section-subtitle">👥 유저 관리</h3>
 
-<hr>
+  <table class="admin-table">
+    <thead>
+      <tr><th>ID</th><th>아이디</th><th>닉네임</th><th>상태</th><th>조치</th><th>삭제</th><th>임시비번</th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.nickname or "-" }}</td>
+        <td>{{ "정지됨" if u.is_suspend else "정상" }}</td>
+        <td>
+          <form method="post" action="{{ url_for('suspend_user', uid=u.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-orange">{{ "정지해제" if u.is_suspend else "정지" }}</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('delete_user', uid=u.id) }}" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-red">삭제</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('temp_password', uid=u.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-blue">임시비번</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
-<h3 id="users">👥 유저 관리</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr>
-    <th>ID</th>
-    <th>아이디</th>
-    <th>닉네임</th>
-    <th>상태</th>
-    <th>조치</th>
-  </tr>
-  {% for u in users %}
-    <tr>
-      <td>{{ loop.index }}</td>
-      <td>{{ u.username }}</td>
-      <td>{{ u.nickname or "-" }}</td>
-      <td>{{ "정지됨" if u.is_suspend else "정상" }}</td>
-      <td>
-        <form method="post" action="{{ url_for('suspend_user', uid=u.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button>{{ "정지해제" if u.is_suspend else "정지" }}</button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
-</table>
+<div class="admin-section" id="products">
+  <h3 class="section-subtitle">📦 상품 관리</h3>
 
-<hr>
-
-  <h3 id="products">📦 상품 관리</h3>
-  <table border="1" cellpadding="6" cellspacing="0">
-    <tr>
-      <th>ID</th>
-      <th>제목</th>
-      <th>판매자</th>
-      <th>상태</th>
-      <th>조치</th>
-    </tr>
-    {% for p in products %}
+  <table class="admin-table">
+    <thead>
+      <tr><th>ID</th><th>제목</th><th>판매자</th><th>상태</th><th>조치</th><th>삭제</th></tr>
+    </thead>
+    <tbody>
+      {% for p in products %}
       <tr>
         <td>{{ loop.index }}</td>
         <td>{{ p.name }}</td>
-        <td>
-          {{ p.seller.username }}
-          {% if p.seller.nickname %}
-            ({{ p.seller.nickname }})
-          {% endif %}
-        </td>
+        <td>{{ p.seller.username }}{% if p.seller.nickname %} ({{ p.seller.nickname }}){% endif %}</td>
         <td>{{ "숨김" if p.removed else "공개" }}</td>
         <td>
           <form method="post" action="{{ url_for('toggle_product', pid=p.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button>{{ "복구" if p.removed else "숨기기" }}</button>
+            <button class="btn-orange">{{ "복구" if p.removed else "숨기기" }}</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('delete_product', pid=p.id) }}" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-red">삭제</button>
           </form>
         </td>
       </tr>
-    {% endfor %}
+      {% endfor %}
+    </tbody>
   </table>
-
-
+</div>
 {% endblock %}

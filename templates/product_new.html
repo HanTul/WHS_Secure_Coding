@@ -2,16 +2,42 @@
 {% block title %}상품 등록{% endblock %}
 
 {% block content %}
-<h2>새 상품 등록</h2>
-<form method="post" enctype="multipart/form-data">
-  {{ form.hidden_tag() }}
-  <p>{{ form.name.label }} {{ form.name() }}</p>
-  <p>{{ form.description.label }} {{ form.description() }}</p>
-  <p>{{ form.price.label }} {{ form.price() }}</p>
-  <p>{{ form.image.label }} {{ form.image(multiple=True) }}</p>
-  <p>{{ form.is_sold.label }} {{ form.is_sold() }}</p>
-  <p>{{ form.removed.label }} {{ form.removed() }}</p>
+<div class="product-new-wrapper">
+  <h2>새 상품 등록</h2>
+  <form method="post" enctype="multipart/form-data" class="product-form">
+    {{ form.hidden_tag() }}
 
-  <button type="submit">등록</button>
-</form>
+    <div class="form-group">
+      <label>{{ form.name.label }}</label>
+      {{ form.name(class_="form-control") }}
+    </div>
+
+    <div class="form-group">
+      <label>{{ form.description.label }}</label>
+      {{ form.description(class_="form-control") }}
+    </div>
+
+    <div class="form-group">
+      <label>{{ form.price.label }}</label>
+      {{ form.price(class_="form-control") }}
+    </div>
+
+    <div class="form-group">
+      <label>{{ form.image.label }}</label>
+      {{ form.image(class_="form-control", multiple=True) }}
+    </div>
+
+    <div class="form-group">
+      <label>{{ form.is_sold.label }}</label>
+      {{ form.is_sold(class_="form-control") }}
+    </div>
+
+    <div class="form-group">
+      <label>{{ form.removed.label }}</label>
+      {{ form.removed(class_="form-control") }}
+    </div>
+
+    <button type="submit" class="submit-btn">등록</button>
+  </form>
+</div>
 {% endblock %}
