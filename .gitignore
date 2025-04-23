@@ -1,3 +1,4 @@
 app.db
-static/img
+static/img/*
+!/static/img/default.png
 __pycache__/
