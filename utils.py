@@ -11,3 +11,7 @@ def time_ago(dt):
     if sec < 86400:
         return f"{sec//3600}시간 전"
     return f"{sec//86400}일 전"
+
+
+def make_room_id(buyer_id, seller_id, product_id):
+    return f"dm-{min(buyer_id, seller_id)}-{max(buyer_id, seller_id)}-{product_id}"

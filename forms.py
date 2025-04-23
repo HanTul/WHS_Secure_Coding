@@ -29,5 +29,7 @@ class ProductForm(FlaskForm):
     description = TextAreaField("설명", validators=[DataRequired()])
     price = IntegerField("가격", validators=[DataRequired(), NumberRange(min=0)])
     image = FileField("이미지 파일")
-    is_sold = SelectField("판매 상태", choices=[("0", "판매중"), ("1", "판매완료")])
+    is_sold = SelectField(
+        "판매 상태", choices=[("0", "판매중"), ("1", "판매완료"), ("2", "거래중")]
+    )
     removed = SelectField("공개 상태", choices=[("0", "공개"), ("1", "숨김")])

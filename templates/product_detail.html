@@ -53,7 +53,14 @@
       <span style="font-size:14px; padding:4px 8px; margin-left:10px;
                    background:{{ 'gray' if p.is_sold else '#f60' }};
                    color:white; border-radius:6px;">
-        {{ '판매완료' if p.is_sold else '판매중' }}
+        {% if p.is_sold == 0 %}
+          <span class="status">판매중</span>
+        {% elif p.is_sold == 1 %}
+          <span class="status">판매완료</span>
+        {% elif p.is_sold == 2 %}
+          <span class="status">거래중</span>
+        {% endif %}
+      
       </span>
     </h2>
 

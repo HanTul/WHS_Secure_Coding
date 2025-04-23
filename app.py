@@ -11,6 +11,7 @@ from flask import (
     abort,
     g,
     send_from_directory,
+    jsonify,
 )
 from flask_login import (
     LoginManager,
@@ -20,14 +21,14 @@ from flask_login import (
     current_user,
 )
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 
 from models import db, bcrypt, User, Product, Report, Message
 from forms import RegisterForm, LoginForm, ProductForm
 from utils import time_ago
 from sqlalchemy import func
 from random import randint
-from models import Notification
+from models import Transaction, Notification, Message, User, Product
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "static" / "img"
@@ -41,8 +42,9 @@ def _allowed(fname):
     return "." in fname and fname.rsplit(".", 1)[1].lower() in ALLOWED
 
 
-def room_id(a, b):
-    return f"dm-{min(a,b)}-{max(a,b)}"
+def room_id(a, b, product_id=None):
+    base = f"dm-{min(a, b)}-{max(a, b)}"
+    return f"{base}-{product_id}" if product_id else base
 
 
 def emit_refresh(user_id: int):
@@ -109,6 +111,7 @@ def get_recent_chats(user_id):
         Message.query.filter(
             ((Message.sender_id == user_id) | (Message.receiver_id == user_id))
             & (Message.receiver_id != None)
+            & (Message.product_id != None)
         )
         .order_by(Message.created_at.desc())
         .all()
@@ -130,7 +133,7 @@ def get_recent_chats(user_id):
                 {
                     "partner_id": partner.id,
                     "partner_name": partner.username,
-                    "product_id": m.product_id or 0,
+                    "product_id": m.product_id,
                     "product_name": (
                         Product.query.get(m.product_id).name
                         if m.product_id
@@ -143,6 +146,126 @@ def get_recent_chats(user_id):
             )()
         )
     return previews
+
+
+def create_system_message(room, content, buyer_id, seller_id, product_id=None):
+    system_message = Message(
+        sender_id=None,
+        receiver_id=None,
+        product_id=product_id,
+        content=f"[시스템] {content}",
+    )
+    db.session.add(system_message)
+    db.session.commit()
+
+    socketio.emit(
+        "dm_message",
+        {
+            "user": "시스템",
+            "sender_id": None,
+            "msg": f"[시스템] {content}",
+            "product_id": product_id or 0,
+            "time": system_message.created_at.isoformat() + "Z",
+            "is_system": True,  # 👈 추가
+        },
+        room=room,
+    )
+
+
+def send_transaction_notification(
+    receiver_id, content, partner_id, product, is_system=False
+):
+    snippet_raw = content
+
+    notif = Notification(
+        receiver_id=receiver_id,
+        sender_id=partner_id,
+        partner_name=User.query.get(partner_id).nickname
+        or User.query.get(partner_id).username,
+        product_id=product.id,
+        product_name=product.name,
+        snippet=snippet_raw[:30],
+    )
+    db.session.add(notif)
+    db.session.commit()
+
+    socketio.emit(
+        "dm_notify",
+        {
+            "sender_id": partner_id,
+            "partner_id": partner_id,
+            "partner_name": notif.partner_name,
+            "product_id": product.id,
+            "product_name": product.name,
+            "snippet": snippet_raw[:30],
+            "time": notif.timestamp.isoformat() + "Z",
+        },
+        room=f"user_{receiver_id}",
+    )
+
+
+def update_transaction_status(transaction_id, action, current_user_id):
+    t = Transaction.query.get_or_404(transaction_id)
+    product = Product.query.get(t.product_id)
+    room = room_id(t.buyer_id, t.seller_id)
+
+    if action == "pay" and t.status == "waiting_payment":
+        t.status = "paid"
+        db.session.commit()
+        create_system_message(
+            room, "구매자가 송금을 완료했습니다.", t.buyer_id, t.seller_id, t.product_id
+        )
+        send_transaction_notification(
+            t.seller_id, "[시스템] 구매자가 송금을 완료했습니다.", t.buyer_id, product
+        )
+
+    elif action == "ship" and t.status == "paid":
+        t.status = "shipped"
+        db.session.commit()
+        create_system_message(
+            room, "판매자가 발송을 완료했습니다.", t.buyer_id, t.seller_id, t.product_id
+        )
+        send_transaction_notification(
+            t.buyer_id, "[시스템] 판매자가 발송을 완료했습니다.", t.seller_id, product
+        )
+
+    elif action == "receive" and t.status == "shipped":
+        t.status = "received"
+        # 판매자 balance 지급
+        seller = User.query.get(t.seller_id)
+        seller.balance = getattr(seller, "balance", 0) + t.amount
+        db.session.commit()
+        create_system_message(
+            room,
+            "구매자가 수령을 확인했습니다. 판매자에게 정산이 완료되었습니다.",
+            t.buyer_id,
+            t.seller_id,
+            t.product_id,
+        )
+        send_transaction_notification(
+            t.seller_id, "[시스템] 구매자가 수령을 확인했습니다.", t.buyer_id, product
+        )
+
+    elif action == "cancel" and t.status in ("waiting_payment", "paid"):
+        if t.status == "paid":
+            # 환불 처리
+            buyer = User.query.get(t.buyer_id)
+            seller = User.query.get(t.seller_id)
+            buyer.balance = getattr(buyer, "balance", 0) + t.amount
+            seller.balance = getattr(seller, "balance", 0) - t.amount
+        t.status = "canceled"
+        db.session.commit()
+        create_system_message(
+            room, "거래가 취소되었습니다.", t.buyer_id, t.seller_id, t.product_id
+        )
+        send_transaction_notification(
+            t.buyer_id, "[시스템] 거래가 취소되었습니다.", t.seller_id, product
+        )
+        send_transaction_notification(
+            t.seller_id, "[시스템] 거래가 취소되었습니다.", t.buyer_id, product
+        )
+    else:
+        abort(400, "잘못된 상태 변경 요청입니다.")
 
 
 csrf = CSRFProtect()
@@ -536,70 +659,6 @@ def create_app():
             "msg": "사용 가능" if not exists else "이미 사용 중입니다.",
         }
 
-    @app.route("/chat/<int:partner_id>")
-    @login_required
-    def dm_chat(partner_id):
-        partner = User.query.get_or_404(partner_id)
-        if partner.id == current_user.id:
-            abort(400)
-        room = room_id(current_user.id, partner.id)
-
-        # 읽음 처리
-        Message.query.filter_by(
-            sender_id=partner.id, receiver_id=current_user.id, is_read=False
-        ).update({"is_read": True}, synchronize_session="fetch")
-        db.session.commit()
-
-        prod_id = request.args.get("item", type=int)
-        product = None
-        if prod_id:
-            cand = Product.query.get(prod_id)
-            if cand and cand.seller_id == partner.id:
-                product = cand
-
-        if not product:
-            last = (
-                Message.query.filter(
-                    (
-                        (Message.sender_id == current_user.id)
-                        & (Message.receiver_id == partner.id)
-                    )
-                    | (
-                        (Message.sender_id == partner.id)
-                        & (Message.receiver_id == current_user.id)
-                    )
-                )
-                .filter(Message.product_id.is_not(None))
-                .order_by(Message.created_at.desc())
-                .first()
-            )
-            if last:
-                product = Product.query.get(last.product_id)
-
-        history = (
-            Message.query.filter(
-                (
-                    (Message.sender_id == current_user.id)
-                    & (Message.receiver_id == partner.id)
-                )
-                | (
-                    (Message.sender_id == partner.id)
-                    & (Message.receiver_id == current_user.id)
-                )
-            )
-            .order_by(Message.created_at.asc())
-            .limit(100)
-            .all()
-        )
-
-        return render_template(
-            "dm_chat.html",
-            partner=partner,
-            room=room,
-            history=history,
-            product=product,
-        )
-
     @app.route("/notif/read", methods=["POST"])
     @csrf.exempt
     @login_required
@@ -627,6 +686,192 @@ def create_app():
 
         return {"ok": True}
 
+    @app.route("/chat/<int:partner_id>")
+    @login_required
+    def dm_chat(partner_id):
+        partner = User.query.get_or_404(partner_id)
+        if partner.id == current_user.id:
+            abort(400)
+        room = None
+
+        prod_id = request.args.get("item", type=int)
+        product = None
+        transaction = None
+
+        if prod_id:
+            product = Product.query.get_or_404(prod_id)
+            # 구매자 기준 거래 찾기
+            transaction = (
+                Transaction.query.filter_by(
+                    buyer_id=current_user.id,
+                    seller_id=partner.id,
+                    product_id=product.id,
+                )
+                .order_by(Transaction.created_at.desc())
+                .first()
+            )
+            # 판매자 기준 거래 찾기
+            if not transaction:
+                transaction = (
+                    Transaction.query.filter_by(
+                        buyer_id=partner.id,
+                        seller_id=current_user.id,
+                        product_id=product.id,
+                    )
+                    .order_by(Transaction.created_at.desc())
+                    .first()
+                )
+
+            room = room_id(current_user.id, partner.id, product.id)
+
+            # 🟢 메세지 조회 시 product_id 도 필터링!
+            history = (
+                Message.query.filter(
+                    (
+                        (Message.sender_id == current_user.id)
+                        & (Message.receiver_id == partner.id)
+                    )
+                    | (
+                        (Message.sender_id == partner.id)
+                        & (Message.receiver_id == current_user.id)
+                    )
+                    | (
+                        (Message.sender_id == None) & (Message.receiver_id == None)
+                    )  # 시스템 메시지
+                )
+                .filter(Message.product_id == product.id)
+                .order_by(Message.created_at.asc())
+                .all()
+            )
+
+        else:
+            abort(400, "상품 정보가 필요합니다.")
+
+        return render_template(
+            "dm_chat.html",
+            partner=partner,
+            room=room,
+            history=history,
+            product=product,
+            transaction=transaction,
+        )
+
+    @app.route("/transaction/<int:tid>/pay", methods=["POST"])
+    @csrf.exempt
+    @login_required
+    def transaction_pay(tid):
+        t = Transaction.query.get_or_404(tid)
+        if current_user.id != t.buyer_id:
+            abort(403)
+        if t.status != "waiting_payment":
+            return jsonify({"error": "잘못된 상태입니다."}), 400
+
+        # 구매자 balance 차감
+        if getattr(current_user, "balance", 0) < t.amount:
+            return jsonify({"error": "잔액이 부족합니다."}), 400
+        current_user.balance -= t.amount
+        db.session.commit()
+
+        update_transaction_status(tid, "pay", current_user.id)
+        return jsonify({"ok": True})
+
+    @app.route("/transaction/<int:tid>/ship", methods=["POST"])
+    @csrf.exempt
+    @login_required
+    def transaction_ship(tid):
+        t = Transaction.query.get_or_404(tid)
+        if current_user.id != t.seller_id:
+            abort(403)
+        if t.status != "paid":
+            return jsonify({"error": "잘못된 상태입니다."}), 400
+
+        update_transaction_status(tid, "ship", current_user.id)
+        return jsonify({"ok": True})
+
+    @app.route("/transaction/<int:tid>/receive", methods=["POST"])
+    @csrf.exempt
+    @login_required
+    def transaction_receive(tid):
+        t = Transaction.query.get_or_404(tid)
+        if current_user.id != t.buyer_id:
+            abort(403)
+        if t.status != "shipped":
+            return jsonify({"error": "잘못된 상태입니다."}), 400
+
+        update_transaction_status(tid, "receive", current_user.id)
+        return jsonify({"ok": True})
+
+    @app.route("/transaction/<int:tid>/cancel", methods=["POST"])
+    @csrf.exempt
+    @login_required
+    def transaction_cancel(tid):
+        t = Transaction.query.get_or_404(tid)
+        if current_user.id not in (t.buyer_id, t.seller_id):
+            abort(403)
+        if t.status not in ("waiting_payment", "paid"):
+            return jsonify({"error": "취소가 불가능한 상태입니다."}), 400
+
+        update_transaction_status(tid, "cancel", current_user.id)
+        return jsonify({"ok": True})
+
+    @app.route("/transaction/start/<int:product_id>/<int:partner_id>", methods=["POST"])
+    @csrf.exempt
+    @login_required
+    def transaction_start(product_id, partner_id):
+        product = Product.query.get_or_404(product_id)
+        partner = User.query.get_or_404(partner_id)
+
+        if product.seller_id != partner.id:
+            abort(400, "판매자 정보가 일치하지 않습니다.")
+        if current_user.id == partner.id:
+            abort(400, "본인과 거래할 수 없습니다.")
+
+        # 🟥 수정된 부분: 상품 기준으로, 같은 상품에서만 중복 체크
+        existing = Transaction.query.filter(
+            Transaction.buyer_id == current_user.id,
+            Transaction.seller_id == partner.id,
+            Transaction.product_id == product.id,
+            Transaction.status.in_(["waiting_payment", "paid", "shipped"]),
+        ).first()
+
+        if existing:
+            return jsonify({"error": "이 상품은 이미 거래 중입니다."}), 400
+
+        tran = Transaction(
+            buyer_id=current_user.id,
+            seller_id=partner.id,
+            product_id=product.id,
+            amount=product.price,
+        )
+        db.session.add(tran)
+        product.is_sold = 2  # 거래중
+        db.session.commit()
+
+        room = room_id(tran.buyer_id, tran.seller_id, tran.product_id)
+        create_system_message(
+            room,
+            "거래가 시작되었습니다.",
+            tran.buyer_id,
+            tran.seller_id,
+            tran.product_id,
+        )
+        send_transaction_notification(
+            tran.seller_id,
+            "[시스템] 거래가 시작되었습니다.",
+            tran.buyer_id,
+            product,
+            is_system=True,
+        )
+        send_transaction_notification(
+            tran.buyer_id,
+            "[시스템] 거래가 시작되었습니다.",
+            tran.seller_id,
+            product,
+            is_system=True,
+        )
+
+        return jsonify({"ok": True, "transaction_id": tran.id})
+
     # ───── socket handlers ─────
 
     @socketio.on("connect")
@@ -653,6 +898,7 @@ def create_app():
             return
         msgs = (
             Message.query.filter(Message.receiver_id == None)
+            .filter(Message.sender_id != None)
             .order_by(Message.created_at.asc())
             .limit(100)
             .all()
@@ -718,38 +964,35 @@ def create_app():
     def on_dm_message(data):
         room = data["room"]
         text = data["msg"].strip()
-        prod_id = data.get("product_id")
-        uid1, uid2 = map(int, room.split("-")[1:])
+        uid1, uid2, product_id = map(int, room.split("-")[1:])
+
         sender_id = current_user.id
         target_id = uid2 if sender_id == uid1 else uid1
 
-        # 1. DB 저장
         m = Message(
             sender_id=sender_id,
             receiver_id=target_id,
-            product_id=prod_id,
+            product_id=product_id,
             content=text,
             is_read=False,
         )
         db.session.add(m)
         db.session.commit()
 
-        # 2. 실시간 메시지 송수신
         emit(
             "dm_message",
             {
                 "user": current_user.username,
                 "sender_id": sender_id,
                 "msg": text,
-                "product_id": prod_id or 0,
+                "product_id": product_id,
                 "time": m.created_at.isoformat() + "Z",
             },
             room=room,
         )
 
-        # 3. 상대방이 다른 방에 있는 경우에만 알림 저장 + 전송
         if user_current_room.get(target_id) != room:
-            prod = Product.query.get(prod_id) if prod_id else None
+            prod = Product.query.get(product_id) if product_id else None
 
             # ✅ 알림 DB 저장
             n = Notification(
@@ -779,7 +1022,7 @@ def create_app():
             )
 
         # 4. dm_refresh 양쪽 전송
-        prod = Product.query.get(prod_id) if prod_id else None
+        prod = Product.query.get(product_id) if product_id else None
         emit(
             "dm_refresh",
             {
@@ -831,6 +1074,7 @@ def create_app():
                     "partner_name": n.partner_name,
                     "product_id": n.product_id,
                     "product_name": n.product_name,
+                    "snippet": n.snippet,
                     "time": n.timestamp.isoformat() + "Z",
                 }
                 for n in notifs
@@ -841,8 +1085,10 @@ def create_app():
     return app, socketio
 
 
+app, socketio = create_app()
+
+
 if __name__ == "__main__":
-    app, socketio = create_app()
     with app.app_context():
         db.create_all()
         if not User.query.filter_by(is_admin=True).first():

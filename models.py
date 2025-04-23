@@ -52,7 +52,7 @@ class Product(db.Model):
 
     seller_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     reports_cnt = db.Column(db.Integer, default=0)
-    is_sold = db.Column(db.Boolean, default=False)
+    is_sold = db.Column(db.Integer, default=0)
 
     def owner_check(self, user):
         return user.is_authenticated and self.seller_id == user.id
@@ -74,7 +74,7 @@ class Report(db.Model):
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     receiver_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
     content = db.Column(db.Text, nullable=False)
@@ -92,3 +92,26 @@ class Notification(db.Model):
     snippet = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_read = db.Column(db.Boolean, default=False)
+
+
+class Transaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    seller_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)  # 상품 가격 고정
+    status = db.Column(
+        db.String(20), nullable=False, default="waiting_payment"
+    )  # waiting_payment, paid, shipped, received, canceled
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    buyer = db.relationship(
+        "User", foreign_keys=[buyer_id], backref="transactions_bought"
+    )
+    seller = db.relationship(
+        "User", foreign_keys=[seller_id], backref="transactions_sold"
+    )
+    product = db.relationship("Product", backref="transactions")
