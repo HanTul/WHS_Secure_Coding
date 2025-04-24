@@ -35,10 +35,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return snippet && snippet.startsWith("[시스템]");
   }
   
-  
-  
-   
-  
 
   socket.on("dm_notify", d => {
     if (!d || d.sender_id === myId) return;
@@ -107,11 +103,16 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
       const res = await fetch("/notif/read", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken
+        },
         body: JSON.stringify({ partner_id: pid, product_id: prod })
       });
+
       if (!res.ok) throw new Error("읽음 처리 실패");
 
       notifList.querySelectorAll(`li[data-partner="${pid}"][data-product="${prod}"]`).forEach(el => el.remove());

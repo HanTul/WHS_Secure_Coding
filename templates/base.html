@@ -92,9 +92,11 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const flashes = {{ get_flashed_messages(with_categories=true) | tojson }};
-      flashes.forEach(([cat, msg]) => {
-        alert(msg);
-      });
+        if (Array.isArray(flashes) && flashes.length > 0) {
+          flashes.forEach(([cat, msg]) => {
+            alert(msg);
+          });
+        }
     });
   </script>
   <script>

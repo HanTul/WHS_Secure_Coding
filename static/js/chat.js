@@ -11,13 +11,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const listPreview = document.getElementById("chat-history-list");
   const myId        = Number(document.body.dataset.userid);
   let pubUnread     = 0;
-  let popupOpen     = false;  // ✅ 기본 닫힘
+  let popupOpen     = false;
   let currentRoom   = null;
 
   window.setCurrentRoom = (room) => currentRoom = room;
   window.clearCurrentRoom = () => currentRoom = null;
 
-  // 탭 전환
   tabs.forEach(btn => {
     btn.onclick = () => {
       tabs.forEach(t => t.classList.toggle("active", t === btn));
@@ -26,7 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   });
 
-  // 팝업 열기/닫기
   chatBtn.onclick = () => {
     popupOpen = !popupOpen;
     popup.style.display = popupOpen ? "flex" : "none";
@@ -44,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     boxPublic.innerHTML = "";
     logs.forEach(addPublicChat);
     if (popupOpen) {
-      boxPublic.scrollTop = boxPublic.scrollHeight;  // ✅ 열렸을 때만 스크롤 이동
+      boxPublic.scrollTop = boxPublic.scrollHeight;
     }
   });
 
@@ -65,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
     boxPublic.insertAdjacentHTML("beforeend", `
       <div class="chat-entry ${mine ? "chat-right" : "chat-left"}">
         <div class="sender">${d.username}</div>
-        <div class="chat-msg">${d.msg}</div>
+        <div class="chat-msg">${escapeHtml(d.msg)}</div>
         <div class="time">${formatTime(d.time)}</div>
       </div>`);
   }
@@ -97,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <span class="chat-username">${p.username}</span>
               <span class="chat-time">${formatAgo(p.time)}</span>
             </div>
-            <div class="chat-message">${p.last_msg}</div>
+            <div class="chat-message">${escapeHtml(p.last_msg)}</div>
             <div class="chat-meta">${p.product_name}</div>
           </a>
         </li>`);
@@ -142,4 +140,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const t = new Date(iso);
     return t.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
   }
+
+  function escapeHtml(unsafe) {
+    return unsafe.replace(/[&<>"']/g, m => (
+      {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'}[m]
+    ));
+  }
+  
 });

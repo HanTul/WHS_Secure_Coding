@@ -35,6 +35,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (box) box.scrollTop = box.scrollHeight;
   }
 
+  function escapeHtml(unsafe) {
+    return unsafe.replace(/[&<>"']/g, m => (
+      {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'}[m]
+    ));
+  }
+
+  function decodeHtml(html) {
+    const txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    return txt.value;
+  }
+  
+
   function renderTransactionButtons(status, tid = null) {
     if (!btnArea) return;
     btnArea.innerHTML = "";
@@ -128,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       outer.style.textAlign = isSelf ? "right" : "left";
   
       const bubble = document.createElement("div");
-      bubble.textContent = data.msg;
+      bubble.innerHTML = decodeHtml(data.msg);
       bubble.style.display = "inline-block";
       bubble.style.padding = "8px 14px";
       bubble.style.borderRadius = "16px";

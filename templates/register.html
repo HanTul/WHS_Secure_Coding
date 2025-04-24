@@ -24,4 +24,15 @@
     이미 계정이 있으신가요? <a href="{{ url_for('login') }}">로그인</a>
   </div>
 </div>
+
+{% set messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    {% for category, message in messages %}
+      alert("{{ message }}");
+    {% endfor %}
+  });
+</script>
+{% endif %}
 {% endblock %}

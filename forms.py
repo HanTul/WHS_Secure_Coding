@@ -7,13 +7,33 @@ from wtforms import (
     FileField,
     SelectField,
 )
-from wtforms.validators import DataRequired, Length, EqualTo, NumberRange
+from wtforms.validators import DataRequired, Length, EqualTo, NumberRange, Regexp
 from flask_wtf.file import FileAllowed, FileRequired, MultipleFileField
 
 
 class RegisterForm(FlaskForm):
-    username = StringField("아이디", validators=[DataRequired(), Length(3, 30)])
-    password = PasswordField("비밀번호", validators=[DataRequired(), Length(6, 30)])
+    username = StringField(
+        "아이디",
+        validators=[
+            DataRequired(),
+            Length(3, 30),
+            Regexp(
+                r"^[a-zA-Z0-9_]+$",
+                message="아이디는 영문, 숫자, 언더스코어만 가능합니다.",
+            ),
+        ],
+    )
+    password = PasswordField(
+        "비밀번호",
+        validators=[
+            DataRequired(),
+            Length(8, 30),  # ✅ 비밀번호 최소 8자
+            Regexp(
+                r"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$",
+                message="비밀번호는 영문과 숫자를 포함해야 합니다.",
+            ),
+        ],
+    )
     confirm = PasswordField(
         "비밀번호 확인",
         validators=[EqualTo("password", "비밀번호가 일치하지 않습니다.")],

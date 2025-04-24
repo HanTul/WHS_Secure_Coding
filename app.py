@@ -13,6 +13,7 @@ from flask import (
     send_from_directory,
     jsonify,
     request,
+    session,
 )
 from flask_login import (
     LoginManager,
@@ -30,14 +31,21 @@ from utils import time_ago
 from sqlalchemy import func
 from random import randint
 from models import Transaction, Notification, Message, User, Product
-import random
+import re
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[],  # 전역 제한은 설정하지 않고 개별 라우트에만 적용
+)
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "static" / "img"
 ALLOWED = {"png", "jpg", "jpeg", "gif"}
 
 user_current_room = {}
-user_sid_map = {}  # {user_id: sid}
+user_sid_map = {}
 
 
 def _allowed(fname):
@@ -72,11 +80,10 @@ def emit_refresh(user_id: int):
             }
             for p in previews
         ],
-        namespace="/",  # <- 명시해줘야 클라이언트가 인식 잘함
+        namespace="/",
         room=f"user-{user_id}",
     )
 
-    # 최신 메시지 하나만 갱신
     if previews:
         p = previews[0]
         emit(
@@ -151,6 +158,20 @@ def get_recent_chats(user_id):
 
 
 def create_system_message(room, content, buyer_id, seller_id, product_id=None):
+    transaction = (
+        Transaction.query.filter_by(
+            buyer_id=buyer_id, seller_id=seller_id, product_id=product_id
+        )
+        .filter(Transaction.status.in_(["waiting_payment", "paid", "shipped"]))
+        .first()
+    )
+    if not transaction:
+        return
+
+    correct_room = room_id(buyer_id, seller_id, product_id)
+    if room != correct_room:
+        return
+
     system_message = Message(
         sender_id=None,
         receiver_id=None,
@@ -168,9 +189,9 @@ def create_system_message(room, content, buyer_id, seller_id, product_id=None):
             "msg": f"[시스템] {content}",
             "product_id": product_id or 0,
             "time": system_message.created_at.isoformat() + "Z",
-            "is_system": True,  # 👈 추가
+            "is_system": True,
         },
-        room=room,
+        room=correct_room,
     )
 
 
@@ -233,7 +254,7 @@ def update_transaction_status(transaction_id, action, current_user_id):
 
     elif action == "receive" and t.status == "shipped":
         t.status = "received"
-        # 판매자 balance 지급
+
         seller = User.query.get(t.seller_id)
         seller.balance = getattr(seller, "balance", 0) + t.amount
         product.is_sold = 1
@@ -251,7 +272,7 @@ def update_transaction_status(transaction_id, action, current_user_id):
 
     elif action == "cancel" and t.status in ("waiting_payment", "paid"):
         if t.status == "paid":
-            # 환불 처리
+
             buyer = User.query.get(t.buyer_id)
             seller = User.query.get(t.seller_id)
             buyer.balance = getattr(buyer, "balance", 0) + t.amount
@@ -281,6 +302,9 @@ def create_app():
         SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL")
         or f"sqlite:///{BASE_DIR/'app.db'}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_SAMESITE="Lax",
     )
 
     db.init_app(app)
@@ -346,30 +370,36 @@ def create_app():
     @app.route("/register", methods=["GET", "POST"])
     def register():
         form = RegisterForm()
-        if form.validate_on_submit():
-            if User.query.filter_by(username=form.username.data).first():
-                flash("이미 존재하는 아이디입니다.", "danger")
-                return redirect(url_for("register"))
+        if request.method == "POST":
+            if form.validate_on_submit():
+                if User.query.filter_by(username=form.username.data).first():
+                    flash("이미 존재하는 아이디입니다.", "danger")
+                    return redirect(url_for("register"))
 
-            nickname = f"user{randint(10000, 99999)}"
-            while User.query.filter_by(nickname=nickname).first():
                 nickname = f"user{randint(10000, 99999)}"
+                while User.query.filter_by(nickname=nickname).first():
+                    nickname = f"user{randint(10000, 99999)}"
 
-            # 🟢 계좌번호 랜덤 생성 (예: 8자리 숫자)
-            account_number = str(randint(10000000, 99999999))
-            while User.query.filter_by(account_number=account_number).first():
                 account_number = str(randint(10000000, 99999999))
+                while User.query.filter_by(account_number=account_number).first():
+                    account_number = str(randint(10000000, 99999999))
 
-            u = User(
-                username=form.username.data,
-                nickname=nickname,
-                account_number=account_number,  # 여기 추가!
-            )
-            u.set_password(form.password.data)
-            db.session.add(u)
-            db.session.commit()
-            flash("가입 완료! 로그인하세요.", "success")
-            return redirect(url_for("login"))
+                u = User(
+                    username=form.username.data,
+                    nickname=nickname,
+                    account_number=account_number,
+                )
+                u.set_password(form.password.data)
+                db.session.add(u)
+                db.session.commit()
+                flash("가입 완료! 로그인하세요.", "success")
+                return redirect(url_for("login"))
+
+            for field, error_list in form.errors.items():
+                for error in error_list:
+                    flash(f"{field} 오류: {error}", "danger")
+            return redirect(url_for("register"))
+
         return render_template("register.html", form=form)
 
     @app.route("/login", methods=["GET", "POST"])
@@ -378,6 +408,7 @@ def create_app():
         if form.validate_on_submit():
             u = User.query.filter_by(username=form.username.data).first()
             if u and u.check_password(form.password.data) and not u.is_suspend:
+                session.clear()
                 login_user(u)
                 return redirect(url_for("index"))
             flash("로그인 실패 또는 정지된 계정입니다.", "danger")
@@ -456,7 +487,6 @@ def create_app():
 
         form = ProductForm(obj=p)
 
-        # ✅ GET 요청일 때만 선택 필드 초기화
         if request.method == "GET":
             form.is_sold.data = "1" if p.is_sold else "0"
             form.removed.data = "1" if p.removed else "0"
@@ -466,12 +496,10 @@ def create_app():
             p.is_sold = form.is_sold.data == "1"
             p.removed = form.removed.data == "1"
 
-            # ✅ 삭제 요청된 이미지 제외
             keep_images = set(p.image_path_list)
             deleted = set(request.form.getlist("delete_images"))
             keep_images -= deleted
 
-            # ✅ 새 이미지 추가
             files = request.files.getlist("image")
             for f in files:
                 if f and f.filename and "." in f.filename:
@@ -482,7 +510,6 @@ def create_app():
                         f.save(UPLOAD_DIR / fname)
                         keep_images.add(f"/static/img/{fname}")
 
-            # ✅ 업데이트된 이미지 목록 저장
             p.image_paths = ",".join(keep_images)
 
             db.session.commit()
@@ -502,12 +529,25 @@ def create_app():
         flash("상품이 삭제(숨김)되었습니다.", "info")
         return redirect(url_for("my_products"))
 
+    @limiter.limit(
+        "1 per minute",
+        key_func=lambda: (
+            current_user.id if current_user.is_authenticated else get_remote_address()
+        ),
+    )
     @app.route("/report/<target_type>/<int:tid>", methods=["POST"])
     @login_required
     def report(target_type, tid):
         reason = request.form.get("reason", "").strip() or "No reason"
 
-        # 신고 객체 생성
+        # 동일 유저가 이미 신고한 경우 막기
+        existing = Report.query.filter_by(
+            reporter_id=current_user.id, target_type=target_type, target_id=tid
+        ).first()
+        if existing:
+            flash("이미 신고한 대상입니다.", "warning")
+            return redirect(request.referrer or url_for("index"))
+
         rpt = Report(
             reporter_id=current_user.id,
             target_type=target_type,
@@ -516,11 +556,9 @@ def create_app():
         )
         db.session.add(rpt)
 
-        # 처리 분기
         if target_type == "product":
             prod = Product.query.get_or_404(tid)
             prod.reports_cnt += 1
-            # 5회 이상이면 자동 숨김
             if prod.reports_cnt >= 5 and not prod.removed:
                 prod.removed = True
                 flash("해당 상품이 신고 누적으로 자동 숨김 처리되었습니다.", "warning")
@@ -530,7 +568,6 @@ def create_app():
                 target_type="user", target_id=tid
             ).count()
             user = User.query.get_or_404(tid)
-            # 5회 이상이면 자동 정지
             if total_reports >= 5 and not user.is_suspend:
                 user.is_suspend = True
                 flash("해당 유저가 신고 누적으로 자동 정지 처리되었습니다.", "warning")
@@ -612,7 +649,6 @@ def create_app():
     @login_required
     def my_profile():
         if request.method == "POST":
-            # 비밀번호 변경일 경우
             if "old_password" in request.form:
                 old_pw = request.form.get("old_password", "")
                 new_pw = request.form.get("new_password", "")
@@ -623,25 +659,30 @@ def create_app():
                     db.session.commit()
                     flash("비밀번호가 변경되었습니다.", "success")
 
-            # 프로필 정보 수정일 경우
             else:
                 nickname = request.form.get("nickname", "").strip()
                 intro = request.form.get("intro", "").strip()
                 file = request.files.get("profile_img")
 
-                # 닉네임 중복 체크
                 if nickname != current_user.nickname:
+                    if not re.match(r"^[a-zA-Z0-9가-힣_]{2,20}$", nickname):
+                        flash(
+                            "닉네임은 한글, 영문, 숫자, _ 만 사용 가능하며 2~20자입니다.",
+                            "danger",
+                        )
+                        return redirect(url_for("my_profile"))
+
                     exists = User.query.filter(
                         User.nickname == nickname, User.id != current_user.id
                     ).first()
                     if exists:
                         flash("이미 사용 중인 닉네임입니다.", "danger")
                         return redirect(url_for("my_profile"))
+
                     current_user.nickname = nickname
 
                 current_user.intro = intro
 
-                # 이미지 저장
                 if file and file.filename:
                     ext = file.filename.rsplit(".", 1)[-1].lower()
                     if ext in {"jpg", "jpeg", "png", "gif"}:
@@ -712,7 +753,6 @@ def create_app():
 
         if prod_id:
             product = Product.query.get_or_404(prod_id)
-            # 구매자 기준 거래 찾기
             transaction = (
                 Transaction.query.filter_by(
                     buyer_id=current_user.id,
@@ -722,7 +762,6 @@ def create_app():
                 .order_by(Transaction.created_at.desc())
                 .first()
             )
-            # 판매자 기준 거래 찾기
             if not transaction:
                 transaction = (
                     Transaction.query.filter_by(
@@ -736,7 +775,6 @@ def create_app():
 
             room = room_id(current_user.id, partner.id, product.id)
 
-            # 🟢 메세지 조회 시 product_id 도 필터링!
             history = (
                 Message.query.filter(
                     (
@@ -747,9 +785,7 @@ def create_app():
                         (Message.sender_id == partner.id)
                         & (Message.receiver_id == current_user.id)
                     )
-                    | (
-                        (Message.sender_id == None) & (Message.receiver_id == None)
-                    )  # 시스템 메시지
+                    | ((Message.sender_id == None) & (Message.receiver_id == None))
                 )
                 .filter(Message.product_id == product.id)
                 .order_by(Message.created_at.asc())
@@ -768,6 +804,12 @@ def create_app():
             transaction=transaction,
         )
 
+    @limiter.limit(
+        "1 per 5 seconds",
+        key_func=lambda: (
+            current_user.id if current_user.is_authenticated else get_remote_address()
+        ),
+    )
     @app.route("/transaction/<int:tid>/pay", methods=["POST"])
     @csrf.exempt
     @login_required
@@ -778,7 +820,6 @@ def create_app():
         if t.status != "waiting_payment":
             return jsonify({"error": "잘못된 상태입니다."}), 400
 
-        # 구매자 balance 차감
         if getattr(current_user, "balance", 0) < t.amount:
             return jsonify({"error": "잔액이 부족합니다."}), 400
         current_user.balance -= t.amount
@@ -787,6 +828,12 @@ def create_app():
         update_transaction_status(tid, "pay", current_user.id)
         return jsonify({"ok": True})
 
+    @limiter.limit(
+        "1 per 5 seconds",
+        key_func=lambda: (
+            current_user.id if current_user.is_authenticated else get_remote_address()
+        ),
+    )
     @app.route("/transaction/<int:tid>/ship", methods=["POST"])
     @csrf.exempt
     @login_required
@@ -800,6 +847,12 @@ def create_app():
         update_transaction_status(tid, "ship", current_user.id)
         return jsonify({"ok": True})
 
+    @limiter.limit(
+        "1 per 5 seconds",
+        key_func=lambda: (
+            current_user.id if current_user.is_authenticated else get_remote_address()
+        ),
+    )
     @app.route("/transaction/<int:tid>/receive", methods=["POST"])
     @csrf.exempt
     @login_required
@@ -813,6 +866,12 @@ def create_app():
         update_transaction_status(tid, "receive", current_user.id)
         return jsonify({"ok": True})
 
+    @limiter.limit(
+        "1 per 5 seconds",
+        key_func=lambda: (
+            current_user.id if current_user.is_authenticated else get_remote_address()
+        ),
+    )
     @app.route("/transaction/<int:tid>/cancel", methods=["POST"])
     @csrf.exempt
     @login_required
@@ -826,6 +885,12 @@ def create_app():
         update_transaction_status(tid, "cancel", current_user.id)
         return jsonify({"ok": True})
 
+    @limiter.limit(
+        "1 per 30 seconds",
+        key_func=lambda: (
+            current_user.id if current_user.is_authenticated else get_remote_address()
+        ),
+    )
     @app.route("/transaction/start/<int:product_id>/<int:partner_id>", methods=["POST"])
     @csrf.exempt
     @login_required
@@ -838,16 +903,16 @@ def create_app():
         if current_user.id == partner.id:
             abort(400, "본인과 거래할 수 없습니다.")
 
-        # 🟥 수정된 부분: 상품 기준으로, 같은 상품에서만 중복 체크
         existing = Transaction.query.filter(
-            Transaction.buyer_id == current_user.id,
-            Transaction.seller_id == partner.id,
             Transaction.product_id == product.id,
             Transaction.status.in_(["waiting_payment", "paid", "shipped"]),
         ).first()
 
         if existing:
-            return jsonify({"error": "이 상품은 이미 거래 중입니다."}), 400
+            return (
+                jsonify({"error": "이 상품은 현재 다른 사용자와 거래 중입니다."}),
+                400,
+            )
 
         tran = Transaction(
             buyer_id=current_user.id,
@@ -856,7 +921,7 @@ def create_app():
             amount=product.price,
         )
         db.session.add(tran)
-        product.is_sold = 2  # 거래중
+        product.is_sold = 2
         db.session.commit()
 
         room = room_id(tran.buyer_id, tran.seller_id, tran.product_id)
@@ -903,7 +968,6 @@ def create_app():
             flash("충전 중 오류가 발생했습니다.", "danger")
         return redirect(url_for("my_profile"))
 
-    # 유저 삭제
     @app.route("/admin/delete_user/<int:uid>", methods=["POST"])
     @login_required
     def delete_user(uid):
@@ -918,7 +982,6 @@ def create_app():
             flash("유저가 삭제되었습니다.", "info")
         return redirect(url_for("admin"))
 
-    # 임시 비밀번호 발급
     @app.route("/admin/temp_password/<int:uid>", methods=["POST"])
     @login_required
     def temp_password(uid):
@@ -931,7 +994,6 @@ def create_app():
         flash(f"임시 비밀번호: {temp_pw}", "success")
         return redirect(url_for("admin"))
 
-    # 상품 삭제
     @app.route("/admin/delete_product/<int:pid>", methods=["POST"])
     @login_required
     def delete_product(pid):
@@ -1022,7 +1084,7 @@ def create_app():
                     "product_id": cp.product_id,
                     "product_name": cp.product_name,
                     "last_msg": cp.last_message,
-                    "time": cp.last_time.isoformat(),  # <-- 여기 수정됨
+                    "time": cp.last_time.isoformat(),
                     "read": cp.is_read,
                     "link": url_for(
                         "dm_chat", partner_id=cp.partner_id, item=cp.product_id or None
@@ -1065,7 +1127,6 @@ def create_app():
         if user_current_room.get(target_id) != room:
             prod = Product.query.get(product_id) if product_id else None
 
-            # ✅ 알림 DB 저장
             n = Notification(
                 receiver_id=target_id,
                 sender_id=sender_id,
@@ -1077,7 +1138,6 @@ def create_app():
             db.session.add(n)
             db.session.commit()
 
-            # ✅ 알림 전송
             emit(
                 "dm_notify",
                 {
@@ -1087,12 +1147,11 @@ def create_app():
                     "product_id": prod.id if prod else 0,
                     "product_name": prod.name if prod else "(상품없음)",
                     "snippet": text[:30],
-                    "time": n.timestamp.isoformat() + "Z",  # ← 알림 저장된 시각 기준
+                    "time": n.timestamp.isoformat() + "Z",
                 },
                 room=f"user_{target_id}",
             )
 
-        # 4. dm_refresh 양쪽 전송
         prod = Product.query.get(product_id) if product_id else None
         emit(
             "dm_refresh",
@@ -1121,7 +1180,6 @@ def create_app():
             room=f"user-{target_id}",
         )
 
-        # 5. 전체 미리보기 새로고침
         emit_refresh(sender_id)
         emit_refresh(target_id)
 
@@ -1150,7 +1208,7 @@ def create_app():
                 }
                 for n in notifs
             ],
-            room=request.sid,  # ❗ socket.emit()에 응답이 도착하도록 보장
+            room=request.sid,
         )
 
     return app, socketio

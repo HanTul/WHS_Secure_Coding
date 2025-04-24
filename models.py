@@ -11,9 +11,9 @@ bcrypt = Bcrypt()
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(30), unique=True, nullable=False)
-    nickname = db.Column(db.String(30), unique=True, nullable=True)  # ✅ 닉네임 추가
+    nickname = db.Column(db.String(30), unique=True, nullable=True)
     profile_img = db.Column(db.String(255), default="")
-    intro = db.Column(db.Text, default="")  # ✅ 한 줄 소개
+    intro = db.Column(db.Text, default="")
     pw_hash = db.Column(db.String(128), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
     is_suspend = db.Column(db.Boolean, default=False)
@@ -50,7 +50,7 @@ class Product(db.Model):
     name = db.Column(db.String(60), nullable=False)
     description = db.Column(db.Text, nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    image_paths = db.Column(db.Text)  # 쉼표로 구분된 이미지 경로 문자열
+    image_paths = db.Column(db.Text)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
@@ -73,7 +73,7 @@ class Product(db.Model):
 class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reporter_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    target_type = db.Column(db.String(10))  # 'user' | 'product'
+    target_type = db.Column(db.String(10))
     target_id = db.Column(db.Integer, nullable=False)
     reason = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -87,7 +87,7 @@ class Message(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_read = db.Column(db.Boolean, default=False)  # ✅ 추가
+    is_read = db.Column(db.Boolean, default=False)
 
 
 class Notification(db.Model):
@@ -107,10 +107,8 @@ class Transaction(db.Model):
     buyer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     seller_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
-    amount = db.Column(db.Integer, nullable=False)  # 상품 가격 고정
-    status = db.Column(
-        db.String(20), nullable=False, default="waiting_payment"
-    )  # waiting_payment, paid, shipped, received, canceled
+    amount = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="waiting_payment")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
