@@ -2,8 +2,6 @@
 
 ## 📦 중고거래 사이트 - 환경 설정 및 실행 방법
 
----
-
 ## 🖥️ 요구 사항
 
 - Python 3.11 이상
@@ -11,15 +9,11 @@
 - Git 설치
 - (권장) Miniconda 또는 Python Virtual Environment 사용
 
----
-
 ## 🛠️ 의존성 설치
 
 ```bash
 pip install -r requirements.txt
 ```
-
----
 
 ## ⚙️ 환경 설정
 
@@ -63,15 +57,11 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
----
-
 ## ▶️ 실행 방법
 
 ```bash
 python app.py
 ```
-
----
 
 ## 🛡️ 관리자 계정 정보
 
