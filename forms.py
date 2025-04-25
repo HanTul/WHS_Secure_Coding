@@ -7,7 +7,14 @@ from wtforms import (
     FileField,
     SelectField,
 )
-from wtforms.validators import DataRequired, Length, EqualTo, NumberRange, Regexp
+from wtforms.validators import (
+    DataRequired,
+    Length,
+    EqualTo,
+    NumberRange,
+    Regexp,
+    Optional,
+)
 from flask_wtf.file import FileAllowed, FileRequired, MultipleFileField
 
 
@@ -49,8 +56,18 @@ class ProductForm(FlaskForm):
     name = StringField("상품명", validators=[DataRequired(), Length(max=60)])
     description = TextAreaField("설명", validators=[DataRequired()])
     price = IntegerField("가격", validators=[DataRequired(), NumberRange(min=0)])
-    image = MultipleFileField("이미지 파일")
+    image = MultipleFileField(
+        "이미지 파일",
+        validators=[
+            Optional(),
+            FileAllowed(
+                ["jpg", "jpeg", "png", "gif"], "이미지 파일만 업로드 가능합니다."
+            ),
+        ],
+    )
     is_sold = SelectField(
         "판매 상태", choices=[("0", "판매중"), ("1", "판매완료"), ("2", "거래중")]
     )
-    removed = SelectField("공개 상태", choices=[("0", "공개"), ("1", "숨김")])
+    removed = SelectField(
+        "공개 상태", choices=[("0", "공개"), ("1", "숨김")], coerce=int
+    )

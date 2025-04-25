@@ -37,7 +37,7 @@ from flask_limiter.util import get_remote_address
 
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=[],  # 전역 제한은 설정하지 않고 개별 라우트에만 적용
+    default_limits=[],
 )
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
@@ -158,20 +158,6 @@ def get_recent_chats(user_id):
 
 
 def create_system_message(room, content, buyer_id, seller_id, product_id=None):
-    transaction = (
-        Transaction.query.filter_by(
-            buyer_id=buyer_id, seller_id=seller_id, product_id=product_id
-        )
-        .filter(Transaction.status.in_(["waiting_payment", "paid", "shipped"]))
-        .first()
-    )
-    if not transaction:
-        return
-
-    correct_room = room_id(buyer_id, seller_id, product_id)
-    if room != correct_room:
-        return
-
     system_message = Message(
         sender_id=None,
         receiver_id=None,
@@ -191,7 +177,7 @@ def create_system_message(room, content, buyer_id, seller_id, product_id=None):
             "time": system_message.created_at.isoformat() + "Z",
             "is_system": True,
         },
-        room=correct_room,
+        room=room,
     )
 
 
@@ -490,50 +476,48 @@ def create_app():
         form = ProductForm(obj=p)
 
         if request.method == "GET":
-            form.is_sold.data = "1" if p.is_sold else "0"
-            form.removed.data = "1" if p.removed else "0"
+            form.is_sold.data = int(p.is_sold)
+            form.removed.data = int(p.removed)
 
-        if request.method == "POST":
-            if form.name.data and form.description.data and form.price.data is not None:
-                try:
-                    form.populate_obj(p)
-                    p.is_sold = form.is_sold.data == "1"
-                    p.removed = form.removed.data == "1"
+        if form.validate_on_submit():
+            try:
+                keep_images = set(p.image_path_list or [])
+                deleted = set(request.form.getlist("delete_images"))
+                keep_images -= deleted
 
-                    keep_images = set(p.image_path_list)
-                    deleted = set(request.form.getlist("delete_images"))
-                    keep_images -= deleted
+                files = form.image.data or []
+                for f in files:
+                    if f and f.filename:
+                        ext = f.filename.rsplit(".", 1)[1].lower()
+                        if ext not in ALLOWED_EXTENSIONS:
+                            flash(f"허용되지 않는 파일 형식입니다: {ext}", "danger")
+                            return render_template("product_edit.html", form=form, p=p)
+                        fname = secure_filename(f.filename)
+                        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+                        f.save(UPLOAD_DIR / fname)
+                        keep_images.add(f"/static/img/{fname}")
 
-                    files = form.image.data  # ✅ MultipleFileField 사용
-                    for f in files:
-                        if f and f.filename:
-                            ext = f.filename.rsplit(".", 1)[1].lower()
-                            if ext not in ALLOWED_EXTENSIONS:
-                                flash(f"허용되지 않는 파일 형식입니다: {ext}", "danger")
-                                return render_template(
-                                    "product_edit.html", form=form, p=p
-                                )
-                            fname = secure_filename(f.filename)
-                            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-                            f.save(UPLOAD_DIR / fname)
-                            keep_images.add(f"/static/img/{fname}")
+                if not keep_images:
+                    flash("이미지는 최소 1장 이상 등록해야 합니다.", "danger")
+                    return render_template("product_edit.html", form=form, p=p)
 
-                    if not keep_images:
-                        flash("이미지는 최소 1장 이상 등록해야 합니다.", "danger")
-                        return render_template("product_edit.html", form=form, p=p)
+                p.name = form.name.data
+                p.description = form.description.data
+                p.price = form.price.data
+                p.is_sold = int(form.is_sold.data)
+                p.removed = int(form.removed.data)
+                p.image_paths = ",".join(keep_images)
 
-                    p.image_paths = ",".join(keep_images)
+                db.session.commit()
+                flash("상품 정보가 수정되었습니다.", "success")
+                return redirect(url_for("my_products"))
 
-                    db.session.commit()
-                    flash("상품 정보가 수정되었습니다.", "success")
-                    return redirect(url_for("my_products"))
+            except Exception as e:
+                db.session.rollback()
+                flash(f"수정 중 오류가 발생했습니다: {e}", "danger")
 
-                except Exception as e:
-                    db.session.rollback()
-                    flash(f"수정 중 오류가 발생했습니다: {e}", "danger")
-
-            else:
-                flash("입력값을 다시 확인해주세요.", "danger")
+        elif request.method == "POST":
+            flash(f"입력값을 다시 확인해주세요. {form.errors}", "danger")
 
         return render_template("product_edit.html", form=form, p=p)
 
