@@ -27,7 +27,7 @@ class RegisterForm(FlaskForm):
         "비밀번호",
         validators=[
             DataRequired(),
-            Length(8, 30),  # ✅ 비밀번호 최소 8자
+            Length(8, 30),
             Regexp(
                 r"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$",
                 message="비밀번호는 영문과 숫자를 포함해야 합니다.",
@@ -49,14 +49,7 @@ class ProductForm(FlaskForm):
     name = StringField("상품명", validators=[DataRequired(), Length(max=60)])
     description = TextAreaField("설명", validators=[DataRequired()])
     price = IntegerField("가격", validators=[DataRequired(), NumberRange(min=0)])
-    image = MultipleFileField(
-        "이미지 파일",
-        validators=[
-            FileAllowed(
-                ["jpg", "jpeg", "png", "gif"], "이미지 파일만 업로드 가능합니다."
-            )
-        ],
-    )
+    image = MultipleFileField("이미지 파일")
     is_sold = SelectField(
         "판매 상태", choices=[("0", "판매중"), ("1", "판매완료"), ("2", "거래중")]
     )

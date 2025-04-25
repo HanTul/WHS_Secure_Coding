@@ -478,6 +478,8 @@ def create_app():
         items = Product.query.filter_by(seller_id=current_user.id).all()
         return render_template("my_products.html", items=items)
 
+    ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif"}
+
     @app.route("/products/<int:pid>/edit", methods=["GET", "POST"])
     @login_required
     def product_edit(pid):
@@ -491,30 +493,47 @@ def create_app():
             form.is_sold.data = "1" if p.is_sold else "0"
             form.removed.data = "1" if p.removed else "0"
 
-        if form.validate_on_submit():
-            form.populate_obj(p)
-            p.is_sold = form.is_sold.data == "1"
-            p.removed = form.removed.data == "1"
+        if request.method == "POST":
+            if form.name.data and form.description.data and form.price.data is not None:
+                try:
+                    form.populate_obj(p)
+                    p.is_sold = form.is_sold.data == "1"
+                    p.removed = form.removed.data == "1"
 
-            keep_images = set(p.image_path_list)
-            deleted = set(request.form.getlist("delete_images"))
-            keep_images -= deleted
+                    keep_images = set(p.image_path_list)
+                    deleted = set(request.form.getlist("delete_images"))
+                    keep_images -= deleted
 
-            files = request.files.getlist("image")
-            for f in files:
-                if f and f.filename and "." in f.filename:
-                    ext = f.filename.rsplit(".", 1)[1].lower()
-                    if ext in {"jpg", "jpeg", "png", "gif"}:
-                        fname = secure_filename(f.filename)
-                        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-                        f.save(UPLOAD_DIR / fname)
-                        keep_images.add(f"/static/img/{fname}")
+                    files = form.image.data  # ✅ MultipleFileField 사용
+                    for f in files:
+                        if f and f.filename:
+                            ext = f.filename.rsplit(".", 1)[1].lower()
+                            if ext not in ALLOWED_EXTENSIONS:
+                                flash(f"허용되지 않는 파일 형식입니다: {ext}", "danger")
+                                return render_template(
+                                    "product_edit.html", form=form, p=p
+                                )
+                            fname = secure_filename(f.filename)
+                            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+                            f.save(UPLOAD_DIR / fname)
+                            keep_images.add(f"/static/img/{fname}")
 
-            p.image_paths = ",".join(keep_images)
+                    if not keep_images:
+                        flash("이미지는 최소 1장 이상 등록해야 합니다.", "danger")
+                        return render_template("product_edit.html", form=form, p=p)
 
-            db.session.commit()
-            flash("상품 정보가 수정되었습니다.", "success")
-            return redirect(url_for("my_products"))
+                    p.image_paths = ",".join(keep_images)
+
+                    db.session.commit()
+                    flash("상품 정보가 수정되었습니다.", "success")
+                    return redirect(url_for("my_products"))
+
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f"수정 중 오류가 발생했습니다: {e}", "danger")
+
+            else:
+                flash("입력값을 다시 확인해주세요.", "danger")
 
         return render_template("product_edit.html", form=form, p=p)
 

@@ -73,11 +73,19 @@
 
     {% if current_user.is_authenticated and current_user.id != p.seller_id %}
       <div style="margin-bottom:24px;">
-        <a href="{{ url_for('dm_chat', partner_id=p.seller_id, item=p.id) }}"
-           style="display:inline-block; padding:10px 20px; background:#f60; color:white; border-radius:6px; text-decoration:none;">
-          💬 채팅하기
-        </a>
+        {% if p.is_sold == 1 %}
+          <button disabled
+                  style="display:inline-block; padding:10px 20px; background:#ccc; color:#666; border-radius:6px; text-decoration:none; cursor:not-allowed;">
+            💬 채팅하기 (판매 완료)
+          </button>
+        {% else %}
+          <a href="{{ url_for('dm_chat', partner_id=p.seller_id, item=p.id) }}"
+            style="display:inline-block; padding:10px 20px; background:#f60; color:white; border-radius:6px; text-decoration:none;">
+            💬 채팅하기
+          </a>
+        {% endif %}
       </div>
+
 
       <div>
         <button id="report-toggle" style="background:none; border:none; color:#888; cursor:pointer;">
